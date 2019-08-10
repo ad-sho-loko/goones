@@ -6,7 +6,8 @@ import (
 	"go_nes/src/ui"
 	"net"
 	"net/http"
-	// _ "net/http/pprof"
+	_ "net/http/pprof"
+	"os"
 )
 
 func prof(){
@@ -18,9 +19,19 @@ func prof(){
 	go http.Serve(l, nil)
 }
 
+func usage(){
+	fmt.Println("gooby [.nes file]")
+}
+
 func main(){
 	// prof()
-	m, err:= nes.NewCassette("../resource/helloworld/sample1.nes")
+
+	if len(os.Args) < 2{
+		usage()
+		os.Exit(1)
+	}
+
+	m, err:= nes.NewCassette("../resource/roms/" + os.Args[1])
 
 	if err != nil{
 		fmt.Println(err)

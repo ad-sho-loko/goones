@@ -3,14 +3,14 @@ package nes
 import "fmt"
 
 type Cpu struct{
-	A   byte
-	X   byte
-	Y   byte
-	S   byte
-	P   byte
-	PC  Word
+	A     byte
+	X     byte
+	Y     byte
+	S     byte
+	P     byte
+	PC    word
 	cycle uint64
-	bus *Bus
+	bus   *Bus
 }
 
 const(
@@ -148,15 +148,15 @@ func (c *Cpu) ldy(b byte){
 	c.updateNZ(c.Y)
 }
 
-func (c *Cpu) sta(addr Word){
+func (c *Cpu) sta(addr word){
 	c.bus.Store(addr, c.A)
 }
 
-func (c *Cpu) stx(addr Word){
+func (c *Cpu) stx(addr word){
 	c.bus.Store(addr, c.X)
 }
 
-func (c *Cpu) sty(addr Word){
+func (c *Cpu) sty(addr word){
 	c.bus.Store(addr, c.Y)
 }
 
@@ -203,7 +203,7 @@ func (c *Cpu) and(b byte){
 	c.updateNZ(c.A)
 }
 
-func (c *Cpu) asl(isAccumulator bool, addr Word){
+func (c *Cpu) asl(isAccumulator bool, addr word){
 	if isAccumulator{
 		prev := c.A
 		c.A <<= 1
@@ -217,7 +217,7 @@ func (c *Cpu) asl(isAccumulator bool, addr Word){
 	}
 }
 
-func (c *Cpu) bit(addr Word){
+func (c *Cpu) bit(addr word){
 	// 特殊なレジスタ操作が必要なのでロジックを個別化する
 	v := c.bus.Load(addr)
 	if v >> 6 & 0x01 != 0{
@@ -249,22 +249,22 @@ func (c *Cpu) compare(left byte, right byte){
 	}
 }
 
-func (c *Cpu) cmp(addr Word){
+func (c *Cpu) cmp(addr word){
 	v := c.bus.Load(addr)
 	c.compare(c.A, v)
 }
 
-func (c *Cpu) cpx(addr Word){
+func (c *Cpu) cpx(addr word){
 	v := c.bus.Load(addr)
 	c.compare(c.X, v)
 }
 
-func (c *Cpu) cpy(addr Word){
+func (c *Cpu) cpy(addr word){
 	v := c.bus.Load(addr)
 	c.compare(c.Y, v)
 }
 
-func (c *Cpu) dec(addr Word){
+func (c *Cpu) dec(addr word){
 	v := c.bus.Load(addr)
 	c.bus.Store(addr, v-1)
 	c.updateNZ(v-1)
@@ -285,7 +285,7 @@ func (c *Cpu) eor(b byte){
 	c.updateNZ(c.A)
 }
 
-func (c *Cpu) inc(addr Word){
+func (c *Cpu) inc(addr word){
 	v := c.bus.Load(addr)
 	c.bus.Store(addr, v+1)
 	c.updateNZ(v+1)
@@ -301,7 +301,7 @@ func (c *Cpu) iny(){
 	c.updateNZ(c.Y)
 }
 
-func (c *Cpu) lsr(isAccumulator bool, addr Word){
+func (c *Cpu) lsr(isAccumulator bool, addr word){
 	if isAccumulator{
 		a:=c.A
 		c.A<<=1
@@ -320,7 +320,7 @@ func (c *Cpu) ora(b byte){
 	c.updateNZ(c.A)
 }
 
-func (c *Cpu) rol(isAccumulator bool, addr Word){
+func (c *Cpu) rol(isAccumulator bool, addr word){
 	rotateLeft := func(b byte) byte{
 		return (b << 1 & 0xFE) | (b >> 7)
 	}
@@ -338,7 +338,7 @@ func (c *Cpu) rol(isAccumulator bool, addr Word){
 	}
 }
 
-func (c *Cpu) ror(isAccumulator bool, addr Word) {
+func (c *Cpu) ror(isAccumulator bool, addr word) {
 	rotateRight := func(b byte) byte {
 		return b >> 1 | (b << 7 & 0x80)
 	}
@@ -355,7 +355,7 @@ func (c *Cpu) ror(isAccumulator bool, addr Word) {
 	}
 }
 
-func (c *Cpu) sbc(addr Word){
+func (c *Cpu) sbc(addr word){
 	prev := c.A
 	c.A = c.A - c.bus.Load(addr) - (1 - c.status(Carry))
 	c.updateC(prev, c.A)
@@ -364,11 +364,11 @@ func (c *Cpu) sbc(addr Word){
 }
 
 func (c *Cpu) push(b byte){
-	c.bus.Store(0x100 | Word(c.S), c.A)
+	c.bus.Store(0x100 | word(c.S), c.A)
 	c.S--
 }
 
-func (c *Cpu) pushWord(w Word){
+func (c *Cpu) pushWord(w word){
 	h := byte(w >> 8)
 	l := byte(w & 0xFF)
 	c.push(h)
@@ -377,13 +377,13 @@ func (c *Cpu) pushWord(w Word){
 
 func (c *Cpu) pop() byte{
 	c.S++
-	return c.bus.Load(0x100 | Word(c.S))
+	return c.bus.Load(0x100 | word(c.S))
 }
 
-func (c *Cpu) popWord() Word {
+func (c *Cpu) popWord() word {
 	h := c.pop()
 	l := c.pop()
-	return Word(h << 8 | l)
+	return word(h << 8 | l)
 }
 
 func (c *Cpu) pha(){
@@ -403,11 +403,11 @@ func (c *Cpu) plp(){
 	c.P = c.pop()
 }
 
-func (c *Cpu) jmp(addr Word){
+func (c *Cpu) jmp(addr word){
 	c.PC = addr
 }
 
-func (c *Cpu) jsr(addr Word){
+func (c *Cpu) jsr(addr word){
 	// NEED - 1?
 	c.pushWord(c.PC)
 	c.jmp(addr)
@@ -424,7 +424,7 @@ func (c *Cpu) rti() {
 }
 
 func (c *Cpu) branch(offset byte){
-	c.PC = Word(int(c.PC) + int(int8(offset)))
+	c.PC = word(int(c.PC) + int(int8(offset)))
 }
 
 func (c *Cpu) bcc(offset byte){
@@ -535,27 +535,27 @@ func (c *Cpu) advance(mode AddrMode){
 	}
 }
 
-func (c *Cpu) solveAddrMode(mode AddrMode) Word {
+func (c *Cpu) solveAddrMode(mode AddrMode) word {
 	switch mode {
 	case Implied:
 		return 0x00
 	case Immediate:
-		return Word(c.bus.Load(c.PC + 1))
+		return word(c.bus.Load(c.PC + 1))
 	case Relative:
-		return Word(c.bus.Load(c.PC + 1))
+		return word(c.bus.Load(c.PC + 1))
 	case Absolute:
 		return c.bus.Loadw(c.PC + 1)
 	case AbsoluteX:
-		return c.bus.Loadw(Word(int(c.bus.Loadw(c.PC + 1)) + int(int8(c.X))))
+		return c.bus.Loadw(word(int(c.bus.Loadw(c.PC + 1)) + int(int8(c.X))))
 	case AbsoluteY:
-		return c.bus.Loadw(Word(int(c.bus.Loadw(c.PC + 1)) + int(int8(c.Y))))
+		return c.bus.Loadw(word(int(c.bus.Loadw(c.PC + 1)) + int(int8(c.Y))))
 	default:
 		abort("panic: unknown addrMode `%s` was called when solving", mode)
 	}
 	panic("Unable to reach here")
 }
 
-func (c *Cpu) execute(inst Instruction, w Word){
+func (c *Cpu) execute(inst Instruction, w word){
 	switch inst.mnemonic {
 	case "LDA":
 		c.lda(byte(w))
@@ -584,7 +584,7 @@ func (c *Cpu) execute(inst Instruction, w Word){
 	}
 }
 
-func (c *Cpu) dump(b byte, arg Word, mne string, mode AddrMode){
+func (c *Cpu) dump(b byte, arg word, mne string, mode AddrMode){
 	fmt.Printf("[PC:0x%4x, A:0x%2x, X:0x%2x, Y:0x%2x] " +
 		"%2x, %4x ## %s (%s) \n",
 		c.PC, c.A, c.X, c.Y, b, arg, mne, mode)

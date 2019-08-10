@@ -5,22 +5,27 @@ import (
 )
 
 type Ppu struct {
-	PpuAddr Word // 0x2006
+	PpuAddr word // 0x2006
 	PpuData byte // 0x2007
-	cycle uint64
-	ram Mem
-	bus *Bus
+	cycle   uint64
+	ram     Mem
+	bus     *Bus
+	renderer *Renderer
 }
 
-func NewPpu(bus *Bus, chrRom []byte) *Ppu{
+func NewPpu(bus *Bus, chrRom []byte, r *Renderer) *Ppu{
 	return &Ppu{
+		PpuAddr:0x00,
+		PpuData:0x00,
+		cycle:0,
 		ram:NewRamInit(0x4000, chrRom),
 		bus:bus,
+		renderer:r,
 	}
 }
 
 func (p *Ppu) writePpuAddr(b byte){
-	p.PpuAddr = p.PpuAddr << 8 | Word(b)
+	p.PpuAddr = p.PpuAddr << 8 | word(b)
 }
 
 func (p *Ppu) writePpuData(b byte){
@@ -33,6 +38,27 @@ func (p *Ppu) readPpuData() byte{
 	b := p.ram.load(p.PpuAddr)
 	p.PpuAddr++
 	return b
+}
+
+func (p *Ppu) run(cycle uint64) bool{
+	p.cycle+= cycle * 3
+
+	if p.cycle >= 341 {
+		p.cycle -= 341
+		p.renderer.line++
+
+		if p.renderer.line <= 240 && p.renderer.line % 8 == 0 {
+			p.buildBackground((p.renderer.line - 1) / 8, p.renderer.tiles)
+		}
+
+		if p.renderer.line == 262 {
+			p.renderer.palette = p.getPalette()
+			p.renderer.line = 0
+			return true
+		}
+	}
+
+	return false
 }
 
 type Tile struct {
@@ -65,7 +91,7 @@ func (p *Ppu) buildTile(x, y int)([][]byte, int){
 func (p *Ppu) getAttribute(x, y int) int{
 	// 0x2000 -  => ネームテーブル
 	// 0x23C0 -  => 属性テーブル
-	addr := Word(int(x / 4) + (int(y / 4) * 8) + 0x2000 + 0x03C0)
+	addr := word(int(x / 4) + (int(y / 4) * 8) + 0x2000 + 0x03C0)
 	return int(p.ram.load(addr))
 }
 
@@ -81,17 +107,17 @@ func (p *Ppu) getBlockId(x, y int) int{
 // スプライトIDはタイルにどのスプライトを適用させるか。0x2000以降に入っている。
 func (p *Ppu) getSpriteId(x, y int) int{
 	// https://github.com/bokuweb/flownes/blob/3603b6d05ebf37d55b4b44236cc124c53667ce7b/src/ppu/index.js#L229
-	addr := Word(y * 32 + x + 0x2000)
+	addr := word(y * 32 + x + 0x2000)
 	return int(p.ram.load(addr))
 }
 
 // SPRITE is 8px * 8px (built by 64bit + 64bit)
 func (p *Ppu) buildSprite(spriteId int) [][]byte{
 	sprite := new2DimArray(8,8)
-	var i, j Word
+	var i, j word
 	for i = 0; i<16; i++{
 		for  j = 0; j<8; j++{
-			addr := Word(spriteId) * 16 + i
+			addr := word(spriteId) * 16 + i
 			b := p.ram.load(addr) // load pattern table
 			if b & (0x80 >> j) != 0x00{
 				sprite[i%8][j] += 0x01 << uint(i/8) // 0, 1, 3

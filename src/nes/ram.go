@@ -18,11 +18,11 @@ func NewRamInit(size int, init []byte) Mem {
 	}
 }
 
-func (m *Ram) load(addr Word) byte{
+func (m *Ram) load(addr word) byte{
 	return m.data[addr]
 }
 
-func (m *Ram) store(addr Word, b byte){
+func (m *Ram) store(addr word, b byte){
 	m.data[addr] = b
 }
 

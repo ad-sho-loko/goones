@@ -14,7 +14,7 @@ func NewBus(wram Mem, prgRom []byte) *Bus{
 	}
 }
 
-func (b *Bus) Load(addr Word) byte{
+func (b *Bus) Load(addr word) byte{
 	if addr < 0x0800 {
 		return b.wram.load(addr)
 	} else if addr < 0x2000{
@@ -27,14 +27,14 @@ func (b *Bus) Load(addr Word) byte{
 	return 0x00
 }
 
-func (b *Bus) Loadw(addr Word) Word {
+func (b *Bus) Loadw(addr word) word {
 	// little endian
-	upper := Word(b.Load(addr+1))
-	bottom := Word(b.Load(addr))
+	upper := word(b.Load(addr+1))
+	bottom := word(b.Load(addr))
 	return upper << 8 | bottom
 }
 
-func (b *Bus) Store(addr Word, v byte){
+func (b *Bus) Store(addr word, v byte){
 	if addr < 0x0800 {
 		b.wram.store(addr, v)
 	} else if addr < 0x2000 {

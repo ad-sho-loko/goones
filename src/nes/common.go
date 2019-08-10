@@ -1,14 +1,19 @@
 package nes
 
-type Word uint16
+import (
+	"log"
+	"os"
+)
+
+type word uint16
 
 type Mem interface{
-	load(addr Word) byte
-	store(addr Word, b byte)
+	load(addr word) byte
+	store(addr word, b byte)
 	slice(begin int, end int) []byte
 }
 
-func abort(format string, vv ...interface{}){
-	// log.Fatalf(format, vv)
-	// os.Exit(1)
+func abort(format string, v ...interface{}){
+	log.Fatalf(format, v)
+	os.Exit(1)
 }
