@@ -21,8 +21,21 @@ func newDirector(nes *nes.Nes, window *glfw.Window) *Director {
 	}
 }
 
+func (d *Director) setKeyCallback(){
+	callback := func(w *glfw.Window, key glfw.Key, scancode int, action glfw.Action, mods glfw.ModifierKey){
+		switch key {
+		case glfw.KeyUp : d.nes.PushKey(nes.Up)
+		case glfw.KeyDown : d.nes.PushKey(nes.Down)
+		case glfw.KeyLeft : d.nes.PushKey(nes.Left)
+		case glfw.KeyRight : d.nes.PushKey(nes.Right)
+		}
+	}
+	d.window.SetKeyCallback(callback)
+}
+
 func (d *Director) start(){
 	d.nes.Init()
+	d.setKeyCallback()
 	d.playGame()
 
 	// main loop

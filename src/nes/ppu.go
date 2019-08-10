@@ -6,6 +6,8 @@ import (
 
 type Ppu struct {
 	// Core
+	PpuCtrl byte   // 0x2000
+	PpuMask byte   // 0x2001
 	PpuStatus byte // 0x2002
 	OamAddr byte   // 0x2003
 	OamData byte   // 0x2004
@@ -26,6 +28,8 @@ type Ppu struct {
 
 func NewPpu(bus *Bus, chrRom []byte, r *Renderer) *Ppu{
 	return &Ppu{
+		PpuCtrl:0x00,
+		PpuMask:0x00,
 		PpuStatus:0x00,
 		PpuAddr:0x00,
 		PpuData:0x00,
@@ -34,6 +38,14 @@ func NewPpu(bus *Bus, chrRom []byte, r *Renderer) *Ppu{
 		bus:bus,
 		renderer:r,
 	}
+}
+
+func (p *Ppu) writePpuCtrl(b byte){
+	p.PpuCtrl = b
+}
+
+func (p *Ppu) writePpuMask(b byte){
+	p.PpuMask = b
 }
 
 func (p *Ppu) writeOamAddr(b byte){

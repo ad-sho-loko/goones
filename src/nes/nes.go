@@ -15,11 +15,13 @@ type Nes struct {
 func NewNes(cassette Ines) *Nes {
 	wram := NewRam(0x800)
 	renderer := NewRenderer()
+	controller := NewController()
 	bus := NewBus(wram, cassette.PrgRom())
 	cpu := NewCpu(bus)
 	ppu := NewPpu(bus, cassette.ChrRom(), renderer)
 	bus.cpu = cpu
 	bus.ppu = ppu
+	bus.controller = controller
 	return &Nes{
 		cassette: cassette,
 		cpu:      cpu,
@@ -65,4 +67,8 @@ func (n *Nes) Run() bool {
 
 func (n *Nes) Buffer() *image.RGBA {
 	return n.ppu.renderer.Buffer()
+}
+
+func (n *Nes) PushKey(key Key) {
+	n.bus.controller.set(key,1)
 }

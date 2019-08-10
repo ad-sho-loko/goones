@@ -198,8 +198,8 @@ func (c *Cpu) adc(b byte){
 	c.updateNZ(c.A)
 }
 
-func (c *Cpu) and(b byte){
-	c.A = c.A & b
+func (c *Cpu) and(w word){
+	c.A = c.A & c.bus.Load(w)
 	c.updateNZ(c.A)
 }
 
@@ -573,8 +573,16 @@ func (c *Cpu) execute(inst Instruction, w word){
 		c.cpx(w)
 	case "TXS":
 		c.txs()
+	case "AND":
+		c.and(w)
+	case "INC":
+		c.inc(w)
 	case "INX":
 		c.inx()
+	case "DEC":
+		c.dec(w)
+	case "DEX":
+		c.dex()
 	case "DEY":
 		c.dey()
 	case "BPL":
