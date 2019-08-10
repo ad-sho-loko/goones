@@ -43,26 +43,30 @@ func (n *Nes) Init() error {
 	return nil
 }
 
-func (n *Nes) Run() bool {
-	pc := n.cpu.PC
+func (n *Nes) Run(){
+	for{
+		pc := n.cpu.PC
 
-	// decode
-	b := n.bus.Load(pc)
-	inst := n.cpu.decode(b)
-	cycle := inst.cycle
-	addr := n.cpu.solveAddrMode(inst.addrMode)
+		// decode
+		b := n.bus.Load(pc)
+		inst := n.cpu.decode(b)
+		cycle := inst.cycle
+		addr := n.cpu.solveAddrMode(inst.addrMode)
 
-	// for debug
-	// n.cpu.dump(b, addr, inst.mnemonic, inst.addrMode)
+		// for debug
+		// n.cpu.dump(b, addr, inst.mnemonic, inst.addrMode)
 
-	// execute
-	n.cpu.advance(inst.addrMode)
-	n.cpu.execute(inst, addr)
+		// execute
+		n.cpu.advance(inst.addrMode)
+		n.cpu.execute(inst, addr)
 
-	n.cpu.cycle += cycle
+		n.cpu.cycle += cycle
 
-	// If it's necessary to render vram, return true
-	return n.ppu.run(cycle * 3)
+		if n.ppu.run(cycle * 3){
+			n.ppu.renderer.render()
+			break
+		}
+	}
 }
 
 func (n *Nes) Buffer() *image.RGBA {

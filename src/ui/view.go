@@ -29,23 +29,12 @@ func (g *GameView) Enter(){
 }
 
 func (g *GameView) Update(){
-	isRender := g.director.nes.Run()
-
-	if isRender{
-		rgba := g.director.nes.Buffer()
-
-		gl.BindTexture(gl.TEXTURE_2D, g.texture)
-
-		// porting vram to texture
-		setTexture(rgba)
-
-		// draw actually in window
-		drawBuffer(g.director.window)
-		gl.BindTexture(gl.TEXTURE_2D, 0)
-
-		// 本当にここでいいかは不明
-		g.director.window.SwapBuffers()
-	}
+	g.director.nes.Run()
+	rgba := g.director.nes.Buffer()
+	gl.BindTexture(gl.TEXTURE_2D, g.texture)
+	setTexture(rgba)
+	drawBuffer(g.director.window)
+	gl.BindTexture(gl.TEXTURE_2D, 0)
 }
 
 

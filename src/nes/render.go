@@ -31,7 +31,6 @@ func NewRenderer() *Renderer{
 }
 
 func (r *Renderer) Buffer() *image.RGBA{
-	r.render()
 	return r.img
 }
 

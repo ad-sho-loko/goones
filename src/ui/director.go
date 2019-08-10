@@ -40,11 +40,12 @@ func (d *Director) start(){
 
 	// main loop
 	for !d.window.ShouldClose() {
-		// Do OpenGL stuff.
 		d.update()
-		// d.window.SwapBuffers()
+		d.window.SwapBuffers()
 		glfw.PollEvents()
 	}
+
+	d.setView(nil)
 }
 
 func (d *Director) playGame(){

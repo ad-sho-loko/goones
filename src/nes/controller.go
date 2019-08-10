@@ -47,7 +47,7 @@ func (c *Controller) read() byte{
 	}
 
 	c.counter++
-	c.counter%=7
+	c.counter%=8
 	return b
 }
 

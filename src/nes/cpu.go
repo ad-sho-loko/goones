@@ -13,6 +13,8 @@ type Cpu struct{
 	bus   *Bus
 }
 
+const CPUFrequency = 1789773
+
 const(
 	Carry    = 0x01
 	Zero     = 0x02
