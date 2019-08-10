@@ -211,7 +211,7 @@ func (p *Ppu) getBackgroundPalette() [16]color.RGBA{
 func (p *Ppu) getSpritePalette() [16]color.RGBA{
 	var currentPalette [16]color.RGBA
 	// background backgroundPalette
-	for i, b := range p.ram.slice(0x3F10, 0x3F1F){
+	for i, b := range p.ram.slice(0x3F10, 0x3F20){
 		currentPalette[i] = SystemPalette[b]
 	}
 	return currentPalette

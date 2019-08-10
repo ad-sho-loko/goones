@@ -70,6 +70,11 @@ func (r *Renderer) renderSprite(sprite *Sprite){
 
 	for i := 0; i < 8; i++ {
 		for j:= 0; j < 8; j++ {
+
+			if sprite.bytes[i][j] == 0 {
+				continue
+			}
+
 			paletteIdx := int(sprite.paletteId) * 4 + int(sprite.bytes[i][j])
 			rgba := r.spritePalette[paletteIdx]
 			r.img.SetRGBA(int(sprite.x) + j, int(sprite.y) + i, rgba)
