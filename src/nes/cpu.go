@@ -133,18 +133,18 @@ func (c *Cpu) updateC(prev byte, now byte){
 	}
 }
 
-func (c *Cpu) lda(b byte){
-	c.A = b
+func (c *Cpu) lda(w word){
+	c.A = c.bus.Load(w)
 	c.updateNZ(c.A)
 }
 
-func (c *Cpu) ldx(b byte){
-	c.X = b
+func (c *Cpu) ldx(w word){
+	c.X = c.bus.Load(w)
 	c.updateNZ(c.X)
 }
 
-func (c *Cpu) ldy(b byte){
-	c.Y = b
+func (c *Cpu) ldy(w word){
+	c.Y = c.bus.Load(w)
 	c.updateNZ(c.Y)
 }
 
@@ -427,51 +427,51 @@ func (c *Cpu) branch(offset byte){
 	c.PC = word(int(c.PC) + int(int8(offset)))
 }
 
-func (c *Cpu) bcc(offset byte){
+func (c *Cpu) bcc(w word){
 	if !c.isCarry(){
-		c.branch(offset)
+		c.branch(c.bus.Load(w))
 	}
 }
 
-func (c *Cpu) bcs(offset byte){
+func (c *Cpu) bcs(w word){
 	if c.isCarry(){
-		c.branch(offset)
+		c.branch(c.bus.Load(w))
 	}
 }
 
-func (c *Cpu) beq(offset byte){
+func (c *Cpu) beq(w word){
 	if c.isZero(){
-		c.branch(offset)
+		c.branch(c.bus.Load(w))
 	}
 }
 
-func (c *Cpu) bne(offset byte){
+func (c *Cpu) bne(w word){
 	if !c.isZero(){
-		c.branch(offset)
+		c.branch(c.bus.Load(w))
 	}
 }
 
-func (c *Cpu) bmi(offset byte){
+func (c *Cpu) bmi(w word){
 	if c.isNegative(){
-		c.branch(offset)
+		c.branch(c.bus.Load(w))
 	}
 }
 
-func (c *Cpu) bpl(offset byte){
+func (c *Cpu) bpl(w word){
 	if !c.isNegative(){
-		c.branch(offset)
+		c.branch(c.bus.Load(w))
 	}
 }
 
-func (c *Cpu) bvc(offset byte){
+func (c *Cpu) bvc(w word){
 	if !c.isOverflow(){
-		c.branch(offset)
+		c.branch(c.bus.Load(w))
 	}
 }
 
-func (c *Cpu) bvs(offset byte){
+func (c *Cpu) bvs(w word){
 	if !c.isOverflow(){
-		c.branch(offset)
+		c.branch(c.bus.Load(w))
 	}
 }
 
@@ -540,15 +540,17 @@ func (c *Cpu) solveAddrMode(mode AddrMode) word {
 	case Implied:
 		return 0x00
 	case Immediate:
-		return word(c.bus.Load(c.PC + 1))
+		return c.PC + 1
 	case Relative:
-		return word(c.bus.Load(c.PC + 1))
+		// ???
+		return c.PC + 1
 	case Absolute:
 		return c.bus.Loadw(c.PC + 1)
 	case AbsoluteX:
-		return c.bus.Loadw(word(int(c.bus.Loadw(c.PC + 1)) + int(int8(c.X))))
+		return c.bus.Loadw(c.PC + 1) + word(c.X)
 	case AbsoluteY:
-		return c.bus.Loadw(word(int(c.bus.Loadw(c.PC + 1)) + int(int8(c.Y))))
+		return c.bus.Loadw(c.PC + 1) + word(c.Y)
+		// memo :return word(int(c.fetchOperandWord(c.PC)) + int(int8(c.X)))
 	default:
 		abort("panic: unknown addrMode `%s` was called when solving", mode)
 	}
@@ -558,23 +560,27 @@ func (c *Cpu) solveAddrMode(mode AddrMode) word {
 func (c *Cpu) execute(inst Instruction, w word){
 	switch inst.mnemonic {
 	case "LDA":
-		c.lda(byte(w))
+		c.lda(w)
 	case "LDX":
-		c.ldx(byte(w))
+		c.ldx(w)
 	case "LDY":
-		c.ldy(byte(w))
+		c.ldy(w)
 	case "STA":
 		c.sta(w)
 	case "SEI":
 		c.sei()
+	case "CPX":
+		c.cpx(w)
 	case "TXS":
 		c.txs()
 	case "INX":
 		c.inx()
 	case "DEY":
 		c.dey()
+	case "BPL":
+		c.bpl(w)
 	case "BNE":
-		c.bne(byte(w))
+		c.bne(w)
 	case "JMP":
 		c.jmp(w)
 	case "BRK":

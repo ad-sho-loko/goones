@@ -48,17 +48,18 @@ func (n *Nes) Run() bool {
 	b := n.bus.Load(pc)
 	inst := n.cpu.decode(b)
 	cycle := inst.cycle
-	wd := n.cpu.solveAddrMode(inst.addrMode)
+	addr := n.cpu.solveAddrMode(inst.addrMode)
 
 	// for debug
-	// n.cpu.dump(b, wd, inst.mnemonic, inst.addrMode)
+	n.cpu.dump(b, addr, inst.mnemonic, inst.addrMode)
 
 	// execute
 	n.cpu.advance(inst.addrMode)
-	n.cpu.execute(inst, wd)
+	n.cpu.execute(inst, addr)
 
 	n.cpu.cycle += cycle
 
+	// If it's necessary to render vram, return true
 	return n.ppu.run(cycle * 3)
 }
 

@@ -11,14 +11,17 @@ var(
 )
 
 type Renderer struct {
-	line int
-	tiles []*Tile
-	palette [16]color.RGBA
-	img *image.RGBA
+	line              int
+	tiles             []*Tile
+	backgroundPalette [16]color.RGBA
+	spritePalette     [16]color.RGBA
+	img               *image.RGBA
+	sprite            *Sprite
 }
 
 func NewRenderer() *Renderer{
 	initSystemPallete()
+
 	return &Renderer{
 		line:0,
 		tiles:make([]*Tile, 30*32),
@@ -34,6 +37,7 @@ func (r *Renderer) Buffer() *image.RGBA{
 
 func (r *Renderer) render(){
 	r.renderBackground(r.tiles)
+	r.renderSprite(r.sprite)
 }
 
 func (r *Renderer) renderBackground(background []*Tile){
@@ -49,8 +53,8 @@ func (r *Renderer) renderBackground(background []*Tile){
 func (r *Renderer) renderTile(tile *Tile, tileX, tileY int){
 	for i := 0; i < 8; i++ {
 		for j:= 0; j < 8; j++ {
-			paletteIdx := tile.paletteId * 4 + int(tile.sprite[i][j])
-			rgba := r.palette[paletteIdx]
+			paletteIdx := tile.paletteId * 4 + int(tile.bytes[i][j])
+			rgba := r.backgroundPalette[paletteIdx]
 			x := tileX + j
 			y := tileY + i
 			r.img.SetRGBA(x, y, rgba)
@@ -59,25 +63,16 @@ func (r *Renderer) renderTile(tile *Tile, tileX, tileY int){
 	}
 }
 
-var SystemPalette [64]color.RGBA
-
-func initSystemPallete() {
-	colors := []uint32{
-		0x666666, 0x002A88, 0x1412A7, 0x3B00A4, 0x5C007E, 0x6E0040, 0x6C0600, 0x561D00,
-		0x333500, 0x0B4800, 0x005200, 0x004F08, 0x00404D, 0x000000, 0x000000, 0x000000,
-		0xADADAD, 0x155FD9, 0x4240FF, 0x7527FE, 0xA01ACC, 0xB71E7B, 0xB53120, 0x994E00,
-		0x6B6D00, 0x388700, 0x0C9300, 0x008F32, 0x007C8D, 0x000000, 0x000000, 0x000000,
-		0xFFFEFF, 0x64B0FF, 0x9290FF, 0xC676FF, 0xF36AFF, 0xFE6ECC, 0xFE8170, 0xEA9E22,
-		0xBCBE00, 0x88D800, 0x5CE430, 0x45E082, 0x48CDDE, 0x4F4F4F, 0x000000, 0x000000,
-		0xFFFEFF, 0xC0DFFF, 0xD3D2FF, 0xE8C8FF, 0xFBC2FF, 0xFEC4EA, 0xFECCC5, 0xF7D8A5,
-		0xE4E594, 0xCFEF96, 0xBDF4AB, 0xB3F3CC, 0xB5EBF2, 0xB8B8B8, 0x000000, 0x000000,
+func (r *Renderer) renderSprite(sprite *Sprite){
+	if sprite.isUseBg{
+		return
 	}
 
-	for i, c := range colors {
-		r := byte(c >> 16)
-		g := byte(c >> 8)
-		b := byte(c)
-		SystemPalette[i] = color.RGBA{R: r, G: g, B: b, A: 0xFF}
+	for i := 0; i < 8; i++ {
+		for j:= 0; j < 8; j++ {
+			paletteIdx := int(sprite.paletteId) * 4 + int(sprite.bytes[i][j])
+			rgba := r.spritePalette[paletteIdx]
+			r.img.SetRGBA(int(sprite.x) + j, int(sprite.y) + i, rgba)
+		}
 	}
 }
-
