@@ -11,6 +11,9 @@ type Ppu struct {
 	PpuStatus byte // 0x2002
 	OamAddr byte   // 0x2003
 	OamData byte   // 0x2004
+	scrollFirst bool  // for 0x2005
+	PpuScrollX byte // 0x2005(1)
+	PpuScrollY byte // 0x2005(1)
 	PpuAddr word   // 0x2006
 	PpuData byte   // 0x2007
 	cycle   uint64
@@ -53,6 +56,17 @@ func (p *Ppu) writePpuCtrl(b byte){
 
 func (p *Ppu) writePpuMask(b byte){
 	p.PpuMask = b
+}
+
+func (p *Ppu) writePpuScroll(b byte){
+
+	if p.scrollFirst {
+		p.PpuScrollX = b
+	} else{
+		p.PpuScrollY = b
+	}
+
+	p.scrollFirst = !p.scrollFirst
 }
 
 func (p *Ppu) writeOamAddr(b byte){
@@ -172,9 +186,8 @@ func (p *Ppu) buildTile(x, y int)([8][8]byte, int){
 
 func (p *Ppu) getAttribute(x, y int) int{
 	// 0x2000 -  => ネームテーブル + 0x23C0 -  => 属性テーブル
-
-	addr := word(int(x / 4) + (int(y / 4) * 8) + 0x2000 + 0x03C0)
-	return int(p.ram.load(addr))
+	addr := int(x / 4) + (int(y / 4) * 8 + 0x2000 + 0x03C0)
+	return int(p.ram.load(word(addr)))
 }
 
 // blockId sets up as follow:
@@ -229,7 +242,7 @@ func (p *Ppu) getSpritePalette() [16]color.RGBA{
 	for i, b := range p.ram.slice(0x3F10, 0x3F20){
 		if i % 4 == 0 {
 			// 0x3F10, 0x3F14, 0x3F18, 0x3FC are mirror of 0x3F00, 0x3F04, 0x3F08, 0x3CFC
-			currentPalette[i] = SystemPalette[p.ram.load(word(b - 0x10))]
+			currentPalette[i] = SystemPalette[p.ram.load(word(0x3F00+i))]
 		}else{
 			currentPalette[i] = SystemPalette[b]
 		}

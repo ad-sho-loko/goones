@@ -25,11 +25,12 @@ func NewCassette(path string) (Ines, error){
 
 	// prgRom = 0x4000 Byte (16KB) * header[4]
 	// chrRom = 0x2000 Byte (8KB) * header[5]
+	prgRomStart := HeaderSize
 	chrRomStart := HeaderSize + int(bytes[4]) * 0x4000
 	chrROMEnd := chrRomStart + int(bytes[5]) * 0x2000
 
 	return &Mapper0{
-		prgRom:bytes[HeaderSize:chrRomStart - 1],
+		prgRom:bytes[prgRomStart:chrRomStart - 1],
 		chrRom:bytes[chrRomStart:chrROMEnd - 1],
 	}, nil
 }

@@ -288,8 +288,8 @@ func (c *Cpu) dey(){
 	c.updateNZ(c.Y)
 }
 
-func (c *Cpu) eor(b byte){
-	c.A ^= b
+func (c *Cpu) eor(w word){
+	c.A ^= c.bus.Load(w)
 	c.updateNZ(c.A)
 }
 
@@ -402,7 +402,7 @@ func (c *Cpu) pha(){
 }
 
 func (c *Cpu) php(){
-	c.push(c.P)
+	c.push(c.P | 0x10)
 }
 
 func (c *Cpu) pla(){
@@ -512,12 +512,16 @@ func (c *Cpu) sei(){
 	c.setBit(Irq)
 }
 
+func (c *Cpu) rra(){
+	// do nothing on NES
+}
+
 func (c *Cpu) sre(){
 	// do nothing on NES
 }
 
 func (c *Cpu) brk(){
-	c.irq()
+	// c.irq()
 }
 
 func (c *Cpu) nop(){
@@ -634,22 +638,34 @@ func (c *Cpu) execute(inst Instruction, w word){
 		c.cpx(w)
 	case "TXS":
 		c.txs()
+	case "TYA":
+		c.tya()
+	case "TAX":
+		c.tax()
+	case "TAY":
+		c.tay()
 	case "BIT":
 		c.bit(w)
 	case "ADC":
 		c.adc(w)
 	case "AND":
 		c.and(w)
+	case "EOR":
+		c.eor(w)
 	case "INC":
 		c.inc(w)
 	case "INX":
 		c.inx()
+	case "INY":
+		c.iny()
 	case "DEC":
 		c.dec(w)
 	case "DEX":
 		c.dex()
 	case "DEY":
 		c.dey()
+	case "CPY":
+		c.cpy(w)
 	case "CLC":
 		c.clc()
 	case "CLD":
@@ -673,6 +689,8 @@ func (c *Cpu) execute(inst Instruction, w word){
 		c.rts()
 	case "RTI":
 		c.rti()
+	case "PHP":
+		c.php()
 	case "BCC":
 		c.bcc(w)
 	case "BCS":
@@ -693,6 +711,8 @@ func (c *Cpu) execute(inst Instruction, w word){
 		c.brk()
 	case "NOP":
 		c.nop()
+	case "RRA":
+		c.rra() // do nothing
 	case "SRE":
 		c.sre() // do nothing
 	default:
