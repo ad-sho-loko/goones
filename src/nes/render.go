@@ -40,6 +40,7 @@ func (r *Renderer) render(){
 }
 
 func (r *Renderer) renderBackground(background []*Tile){
+	// fix : 右端のBGが更新されないバグあり
 	for i := 0; i < len(background); i++ {
 		x := (i % 32) * 8
 		y := int(i / 32) * 8
@@ -47,8 +48,6 @@ func (r *Renderer) renderBackground(background []*Tile){
 	}
 }
 
-// render 1 tile (8px * 8px)
-// TileXはそのタイルの左上のx座標を指している
 func (r *Renderer) renderTile(tile *Tile, tileX, tileY int){
 	offsetX := tile.scrollX % 8
 	// offsetY := tile.scrollY % 8
@@ -57,10 +56,11 @@ func (r *Renderer) renderTile(tile *Tile, tileX, tileY int){
 			paletteIdx := tile.paletteId * 4 + int(tile.bytes[i][j])
 			rgba := r.backgroundPalette[paletteIdx]
 			x := tileX + j - int(offsetX)
-			y := tileY + i // - int(tile.scrollY)
+			y := tileY + i // - int(offsetY)
 			r.img.SetRGBA(x, y, rgba)
 
-			// if x >= 0 && 0xFF >= x && y >= 0 && y <= 224 {}
+			// if x >= 0 && 0xFF >= x && y >= 0 && y <= 224 {
+		    // }
 		}
 	}
 }

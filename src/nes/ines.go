@@ -30,8 +30,8 @@ func NewCassette(path string) (Ines, error){
 	chrROMEnd := chrRomStart + int(bytes[5]) * 0x2000
 
 	return &Mapper0{
-		prgRom:bytes[prgRomStart:chrRomStart - 1],
-		chrRom:bytes[chrRomStart:chrROMEnd - 1],
+		prgRom:bytes[prgRomStart:chrRomStart-1],
+		chrRom:bytes[chrRomStart:chrROMEnd-1],
 	}, nil
 }
 

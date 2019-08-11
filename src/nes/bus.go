@@ -19,13 +19,16 @@ func (b *Bus) Load(addr word) byte{
 	if addr < 0x0800 {
 		return b.wram.load(addr)
 	} else if addr < 0x2000 {
-		return b.wram.load(addr - 0x0800)
+		return b.wram.load(addr % 0x0800)
 	} else if addr == 0x2002 {
 		return b.ppu.readPpuStatus()
 	} else if addr == 0x2004 {
 		return b.ppu.readOamData()
 	} else if addr == 0x2007{
 		return b.ppu.readPpuData()
+	} else if addr < 0x4000{
+		// mirror
+		b.Load(addr % 8)
 	} else if addr == 0x4016{
 		return b.controller.read()
 	} else if addr < 0x4020 {
@@ -53,7 +56,8 @@ func (b *Bus) Store(addr word, v byte){
 	if addr < 0x0800 {
 		b.wram.store(addr, v)
 	} else if addr < 0x2000 {
-		b.wram.store(addr-0x0800, v)
+		// mirror
+		b.wram.store(addr % 0x0800, v)
 	} else if addr == 0x2000 {
 		b.ppu.writePpuCtrl(v)
 	} else if addr == 0x2001 {
@@ -68,13 +72,22 @@ func (b *Bus) Store(addr word, v byte){
 		b.ppu.writePpuAddr(v)
 	} else if addr == 0x2007 {
 		b.ppu.writePpuData(v)
+	} else if addr < 0x4000{
+		// mirror
+		b.Store(addr % 8, v)
 	} else if addr == 0x4014{
 		// DMA
 		b.dmaTransfer(v)
 	} else if addr == 0x4016{
 		// 1P
 		b.controller.write(v)
-	} else{
+	} else if addr >= 0x6000 && addr < 0x8000{
+		//
+	} else if addr >= 0x8000 && addr <= 0xBFFF{
+		//
+	} else if addr >= 0xC000 {
+		//
+	}else{
 		abort("[Store] Not implementd address 0x%x", addr)
 	}
 }

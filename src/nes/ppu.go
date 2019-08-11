@@ -235,7 +235,7 @@ func (p *Ppu) getBackgroundPalette() [16]color.RGBA{
 	var currentPalette [16]color.RGBA
 	for i, b := range p.ram.slice(0x3F00, 0x3F10){
 		if i % 4 == 0 {
-			// 0x3F04, 0x3F08, 0x3CFC are ignored by background.
+			// 0x3F04, 0x3F08, 0x3C0C are ignored by background.
 			// Instead of here, use these values in the sprite palette.
 			currentPalette[i] = SystemPalette[p.ram.load(0x3F00)]
 		}else{
@@ -249,7 +249,7 @@ func (p *Ppu) getSpritePalette() [16]color.RGBA{
 	var currentPalette [16]color.RGBA
 	for i, b := range p.ram.slice(0x3F10, 0x3F20){
 		if i % 4 == 0 {
-			// 0x3F10, 0x3F14, 0x3F18, 0x3FC are mirror of 0x3F00, 0x3F04, 0x3F08, 0x3CFC
+			// 0x3F10, 0x3F14, 0x3F18, 0x3F1C are mirror of 0x3F00, 0x3F04, 0x3F08, 0x3CFC
 			currentPalette[i] = SystemPalette[p.ram.load(word(0x3F00+i))]
 		}else{
 			currentPalette[i] = SystemPalette[b]

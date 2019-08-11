@@ -18,11 +18,3 @@ func abort(format string, v ...interface{}){
 	os.Exit(1)
 }
 
-
-func new2DimArray(maxX, maxY int) [][]byte{
-	outer := make([][]byte, maxY)
-	for i:=0; i<maxY; i++{
-		outer[i] = make([]byte, maxX)
-	}
-	return outer
-}

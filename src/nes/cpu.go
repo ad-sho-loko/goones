@@ -30,7 +30,8 @@ const(
 type AddrMode uint
 
 const(
-	Immediate AddrMode = iota
+	Accumulator AddrMode = iota
+	Immediate
 	Zeropage
 	ZeropageX
 	ZeropageY
@@ -46,6 +47,7 @@ const(
 
 func (a AddrMode) String() string{
 	switch a {
+	case Accumulator: return "Accumulator"
 	case Immediate: return "Immediate"
 	case Zeropage: return "Zeropage"
 	case ZeropageX : return "ZeropageX"
@@ -328,39 +330,43 @@ func (c *Cpu) ora(b byte){
 	c.updateNZ(c.A)
 }
 
+func (c *Cpu) rotateLeft(b byte) word{
+	return word(b << 1)
+}
+
+func (c *Cpu) rotateRight(b byte) word{
+	return word(b >> 1 | b << 7)
+}
+
 func (c *Cpu) rol(isAccumulator bool, addr word){
-	rotateLeft := func(b byte) word{
-		return word((b << 1 & 0xFE) | (b >> 7))
-	}
-	if isAccumulator{
-		v := rotateLeft(c.A)
-		c.A = byte(v)
-		c.updateC(int(v))
+	if isAccumulator {
+		cv := c.status(Carry)
+		c.updateC((int(c.A) >> 7) & 1)
+		c.A = (c.A << 1) | cv
 		c.updateNZ(c.A)
-	}else{
-		prev := c.bus.Load(addr)
-		v := rotateLeft(prev)
-		c.bus.Store(addr, byte(v))
-		c.updateC(int(rotateLeft(prev)))
-		c.updateNZ(byte(v))
+	} else {
+		cv := c.status(Carry)
+		value := c.bus.Load(addr)
+		c.updateC((int(value )>> 7) & 1)
+		value = (value << 1) | cv
+		c.bus.Store(addr, value)
+		c.updateNZ(value)
 	}
 }
 
 func (c *Cpu) ror(isAccumulator bool, addr word) {
-	rotateRight := func(b byte) word {
-		return word(b >> 1 | (b << 7 & 0x80))
-	}
-
 	if isAccumulator {
-		v := rotateRight(c.A)
-		c.A = byte(v)
-		c.updateC(int(v))
+		cv := c.status(Carry)
+		c.updateC(int(c.A) & 1)
+		c.A = (c.A >> 1) | (cv << 7)
 		c.updateNZ(c.A)
 	} else {
-		prev := c.bus.Load(addr)
-		v := rotateRight(prev)
-		c.bus.Store(addr, byte(v))
-		c.updateC(int(v))
+		cv := c.status(Carry)
+		value := c.bus.Load(addr)
+		c.updateC(int(value) & 1)
+		value = (value >> 1) | (cv << 7)
+		c.bus.Store(addr, value)
+		c.updateNZ(value)
 	}
 }
 
@@ -513,15 +519,42 @@ func (c *Cpu) sei(){
 }
 
 func (c *Cpu) rra(){
-	// do nothing on NES
+	// nop
 }
 
 func (c *Cpu) sre(){
-	// do nothing on NES
+	// nop
+}
+
+func (c *Cpu) dcp(){
+	// nop
+}
+
+func (c *Cpu) rla(){
+	// nop
+}
+
+func (c *Cpu) shy(){
+	// nop
+}
+
+func (c *Cpu) lax(){
+	// nop
+}
+
+func (c *Cpu) kil(){
+	// nop
+}
+
+func (c *Cpu) isc(){
+	// nop
 }
 
 func (c *Cpu) brk(){
-	// c.irq()
+	c.pushWord(c.PC)
+	c.php()
+	addr := c.bus.Loadw(0xFFFE)
+	c.jmp(addr)
 }
 
 func (c *Cpu) nop(){
@@ -577,7 +610,7 @@ func (c *Cpu) decode(b byte) Instruction{
 
 func (c *Cpu) advance(mode AddrMode){
 	switch mode {
-	case Implied:
+	case Accumulator, Implied:
 		c.PC += 1
 	case Immediate, Zeropage, ZeropageX, ZeropageY, Relative:
 		c.PC += 2
@@ -590,6 +623,8 @@ func (c *Cpu) advance(mode AddrMode){
 
 func (c *Cpu) solveAddrMode(mode AddrMode) word {
 	switch mode {
+	case Accumulator:
+		return 0x00
 	case Implied:
 		return 0x00
 	case Immediate:
@@ -638,18 +673,26 @@ func (c *Cpu) execute(inst Instruction, w word){
 		c.cpx(w)
 	case "TXS":
 		c.txs()
+	case "TSX":
+		c.tsx()
 	case "TYA":
 		c.tya()
 	case "TAX":
 		c.tax()
+	case "TXA":
+		c.txa()
 	case "TAY":
 		c.tay()
 	case "BIT":
 		c.bit(w)
 	case "ADC":
 		c.adc(w)
+	case "SBC":
+		c.sbc(w)
 	case "AND":
 		c.and(w)
+	case "ORA":
+		c.eor(w)
 	case "EOR":
 		c.eor(w)
 	case "INC":
@@ -664,6 +707,16 @@ func (c *Cpu) execute(inst Instruction, w word){
 		c.dex()
 	case "DEY":
 		c.dey()
+	case "CMP":
+		c.cmp(w)
+	case "ASL":
+		c.asl(inst.addrMode == Accumulator, w)
+	case "ROR":
+		c.ror(inst.addrMode == Accumulator, w)
+	case "ROL":
+		c.rol(inst.addrMode == Accumulator, w)
+	case "LSR":
+		c.lsr(inst.addrMode == Accumulator, w)
 	case "CPY":
 		c.cpy(w)
 	case "CLC":
@@ -689,8 +742,14 @@ func (c *Cpu) execute(inst Instruction, w word){
 		c.rts()
 	case "RTI":
 		c.rti()
+	case "PLA":
+		c.pla()
+	case "PHA":
+		c.pha()
 	case "PHP":
 		c.php()
+	case "PLP":
+		c.plp()
 	case "BCC":
 		c.bcc(w)
 	case "BCS":
@@ -715,6 +774,18 @@ func (c *Cpu) execute(inst Instruction, w word){
 		c.rra() // do nothing
 	case "SRE":
 		c.sre() // do nothing
+	case "DCP":
+		c.dcp() // do nothing
+	case "RLA":
+		c.rla() // do nothing
+	case "SHY":
+		c.shy() // do nothing
+	case "LAX":
+		c.lax() // do nothing
+	case "KIL":
+		c.lax() // do nothing
+	case "ISC":
+		c.isc() // do nothing
 	default:
 		abort("panic: unknown mnemonic `%s` was invoked.", inst.mnemonic)
 	}
