@@ -211,14 +211,26 @@ func (c *Cpu) and(w word){
 
 func (c *Cpu) asl(isAccumulator bool, addr word){
 	if isAccumulator{
-		prev := c.A
+		if c.A >> 7 & 1 == 1{
+			c.setBit(Carry)
+		}else{
+			c.unsetBit(Carry)
+		}
+
 		c.A <<= 1
-		c.updateC(int(prev) << 1)
 		c.updateNZ(c.A)
+
 	}else{
 		v := c.bus.Load(addr)
-		c.bus.Store(addr, v << 1)
-		c.updateC(int(v) << 1)
+
+		if v >> 7 & 1 == 1{
+			c.setBit(Carry)
+		}else{
+			c.unsetBit(Carry)
+		}
+
+		v <<= 1
+		c.bus.Store(addr, v)
 		c.updateNZ(v)
 	}
 }
@@ -309,41 +321,56 @@ func (c *Cpu) iny(){
 
 func (c *Cpu) lsr(isAccumulator bool, addr word){
 	if isAccumulator{
-		a:=c.A
-		c.A<<=1
-		c.updateC(int(a)>>1)
+		if c.A & 1 == 1{
+			c.setBit(Carry)
+		} else {
+			c.unsetBit(Carry)
+		}
+
+		c.A >>= 1
 		c.updateNZ(c.A)
+
 	}else{
 		v := c.bus.Load(addr)
-		c.bus.Store(addr, v>>1)
-		c.updateC(int(v)>>1)
+		if v & 1 == 1{
+			c.setBit(Carry)
+		} else {
+			c.unsetBit(Carry)
+		}
+		v>>=1
+		c.bus.Store(addr, v)
 		c.updateNZ(v)
 	}
 }
 
-func (c *Cpu) ora(b byte){
-	c.A = c.A | b
+func (c *Cpu) ora(w word){
+	c.A = c.A | c.bus.Load(w)
 	c.updateNZ(c.A)
-}
-
-func (c *Cpu) rotateLeft(b byte) word{
-	return word(b << 1)
-}
-
-func (c *Cpu) rotateRight(b byte) word{
-	return word(b >> 1 | b << 7)
 }
 
 func (c *Cpu) rol(isAccumulator bool, addr word){
 	if isAccumulator {
 		cv := c.status(Carry)
-		c.updateC((int(c.A) >> 7) & 1)
+
+		if (c.A >> 7) & 1 == 1{
+			c.setBit(Carry)
+		}else{
+			c.unsetBit(Carry)
+		}
+
 		c.A = (c.A << 1) | cv
 		c.updateNZ(c.A)
+
 	} else {
 		cv := c.status(Carry)
 		value := c.bus.Load(addr)
-		c.updateC((int(value )>> 7) & 1)
+
+		if (value >> 7) & 1 == 1{
+			c.setBit(Carry)
+		}else{
+			c.unsetBit(Carry)
+		}
+
 		value = (value << 1) | cv
 		c.bus.Store(addr, value)
 		c.updateNZ(value)
@@ -353,13 +380,25 @@ func (c *Cpu) rol(isAccumulator bool, addr word){
 func (c *Cpu) ror(isAccumulator bool, addr word) {
 	if isAccumulator {
 		cv := c.status(Carry)
-		c.updateC(int(c.A) & 1)
-		c.A = (c.A >> 1) | (cv << 7)
+
+		if c.A & 1 == 1{
+			c.setBit(Carry)
+		}else{
+			c.unsetBit(Carry)
+		}
+
+		c.A = (c.A << 1) | (cv << 7)
 		c.updateNZ(c.A)
 	} else {
 		cv := c.status(Carry)
 		value := c.bus.Load(addr)
-		c.updateC(int(value) & 1)
+
+		if value & 1 == 1{
+			c.setBit(Carry)
+		}else{
+			c.unsetBit(Carry)
+		}
+
 		value = (value >> 1) | (cv << 7)
 		c.bus.Store(addr, value)
 		c.updateNZ(value)
@@ -378,7 +417,12 @@ func (c *Cpu) sbc(addr word){
 		c.unsetBit(Carry)
 	}
 
-	c.updateV(a^b, a^c.A)
+	if (a^b)&0x80 != 0 && (a^c.A)&0x80 != 0{
+		c.setBit(Overflow)
+	}else{
+		c.unsetBit(Overflow)
+	}
+
 	c.updateNZ(c.A)
 }
 
@@ -717,7 +761,7 @@ func (c *Cpu) execute(inst Instruction, w word){
 	case "AND":
 		c.and(w)
 	case "ORA":
-		c.eor(w)
+		c.ora(w)
 	case "EOR":
 		c.eor(w)
 	case "INC":

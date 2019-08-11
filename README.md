@@ -7,3 +7,4 @@ NES Emulator written in Golang
 - https://blog.bokuweb.me/entry/nes
 - http://gikofami.fc2web.com/index.html
 - http://taotao54321.hatenablog.com/entry/2017/04/09/031113
+- http://www.qmtpro.com/~nes/misc/nestest.log

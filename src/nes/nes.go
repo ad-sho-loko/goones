@@ -39,8 +39,8 @@ func (n *Nes) Init() error {
 		return errors.New("cassette must be set")
 	}
 
-	// n.cpu.PC = 0x8000
-	n.cpu.PC = 0xc000
+	n.cpu.PC = 0x8000
+	// n.cpu.PC = 0xc000
 
 	n.cpu.S = 0xFD
 	n.cpu.P = 0x24
