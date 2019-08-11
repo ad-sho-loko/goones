@@ -127,6 +127,7 @@ func (p *Ppu) run(cycle uint64) bool{
 		}
 
 		if p.renderer.line == 262 {
+
 			p.renderer.sprites = p.spriteBuffer
 			p.renderer.backgroundPalette = p.getBackgroundPalette()
 			p.renderer.spritePalette = p.getSpritePalette()
@@ -235,6 +236,8 @@ type Sprite struct {
 }
 
 func (p *Ppu) getSprite(tileIndex int) *Sprite{
+	// tileIndexはどのタイル(.spr)を使うかを決めるもの
+	// spriteIdはレンダリングのために連番をつけただけ
 	bytes := p.buildSprite(0x1000, tileIndex)
 
 	return &Sprite{
@@ -247,17 +250,3 @@ func (p *Ppu) getSprite(tileIndex int) *Sprite{
 		paletteId:p.attr & 0x03,
 	}
 }
-
-
-/*
-var i, j word
-for i = 0; i<16; i++{
-	for  j = 0; j<8; j++{
-		// calculates the pattern table address (sprite).
-		// b := p.ram.load(0x1000 + word(p.tileIndex) * 16 + i)
-		b := p.ram.load(0x1000 + word(id) * 16 + i)
-		if b & (0x80 >> j) != 0x00{
-			bytes[i%8][j] += 0x01 << uint(i/8) // 0, 1, 3
-		}
-	}
-}*/

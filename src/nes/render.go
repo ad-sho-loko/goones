@@ -67,12 +67,40 @@ func (r *Renderer) renderSprites(sprites [64]*Sprite){
 		if s != nil{
 			r.renderSprite(s)
 		}
+	}
 }
+
+func (r *Renderer) reverse(b [8][8]byte, isHorizontal bool) [8][8]byte{
+	var buf [8][8]byte
+
+	if isHorizontal {
+		for i := 0; i < 8; i++ {
+			for j := 0; j < 8; j++ {
+				buf[i][j] = b[i][7-j]
+			}
+		}
+		return buf
+	}
+
+	// vertical
+	for i := 0; i < 8; i++ {
+		for j := 0; j < 8; j++ {
+			buf[i][j] = b[7-i][j]
+		}
+	}
+
+	return buf
 }
 
 func (r *Renderer) renderSprite(sprite *Sprite){
 	if sprite.isUseBg{
 		return
+	}
+
+	if sprite.isHorizontalReverse{
+		sprite.bytes = r.reverse(sprite.bytes, true)
+	}else if sprite.isVerticalReverse{
+		sprite.bytes = r.reverse(sprite.bytes, false)
 	}
 
 	for i := 0; i < 8; i++ {
@@ -84,7 +112,8 @@ func (r *Renderer) renderSprite(sprite *Sprite){
 
 			paletteIdx := int(sprite.paletteId) * 4 + int(sprite.bytes[i][j])
 			rgba := r.spritePalette[paletteIdx]
-			r.img.SetRGBA(int(sprite.x) + j, int(sprite.y) + i, rgba)
+			r.img.SetRGBA(int(sprite.x)+j, int(sprite.y)+i, rgba)
+
 		}
 	}
 }
