@@ -364,7 +364,7 @@ func (c *Cpu) sbc(addr word){
 }
 
 func (c *Cpu) push(b byte){
-	c.bus.Store(0x100 | word(c.S), c.A)
+	c.bus.Store(0x100 + word(c.S), b)
 	c.S--
 }
 
@@ -377,13 +377,13 @@ func (c *Cpu) pushWord(w word){
 
 func (c *Cpu) pop() byte{
 	c.S++
-	return c.bus.Load(0x100 | word(c.S))
+	return c.bus.Load(0x100 + word(c.S))
 }
 
 func (c *Cpu) popWord() word {
-	h := c.pop()
 	l := c.pop()
-	return word(h << 8 | l)
+	h := c.pop()
+	return word(h) << 8 | word(l)
 }
 
 func (c *Cpu) pha(){
