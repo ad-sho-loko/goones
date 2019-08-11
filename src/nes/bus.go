@@ -69,7 +69,7 @@ func (b *Bus) Store(addr word, v byte){
 		b.dmaTransfer(v)
 	} else if addr == 0x4016{
 		// 1P
-		b.controller.reset(v)
+		b.controller.write(v)
 	} else{
 		abort("[Store] Not implementd address 0x%x", addr)
 	}

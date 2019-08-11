@@ -1,6 +1,8 @@
 package nes
 
-import "fmt"
+import (
+	"fmt"
+)
 
 type Cpu struct{
 	A     byte
@@ -11,6 +13,7 @@ type Cpu struct{
 	PC    word
 	cycle uint64
 	bus   *Bus
+	intrrupt func()
 }
 
 const(
@@ -59,12 +62,6 @@ func (a AddrMode) String() string{
 	panic("Unable to reach here")
 }
 
-const(
-	NMI = iota
-	RESET
-	IRQ
-)
-
 func NewCpu(bus *Bus) *Cpu{
 	return &Cpu{
 		bus:bus,
@@ -103,6 +100,14 @@ func (c *Cpu) isOverflow() bool{
 	return c.P & Negative != 0
 }
 
+func (c *Cpu) isIrqForbitten() bool{
+	return c.P & Irq != 0
+}
+
+func (c *Cpu) setIrq(){
+	c.P |= Irq
+}
+
 func (c *Cpu) updateNZ(b byte){
 	if b == 0x00{
 		c.setBit(Zero)
@@ -117,6 +122,7 @@ func (c *Cpu) updateNZ(b byte){
 	}
 }
 
+// not good
 func (c *Cpu) updateV(prev byte, now byte){
 	if prev & 0x80 == 0 && now & 0x80 != 0{
 		c.setBit(Overflow)
@@ -125,12 +131,24 @@ func (c *Cpu) updateV(prev byte, now byte){
 	}
 }
 
+// Use updateC2!
+/*
 func (c *Cpu) updateC(prev byte, now byte){
 	if prev & 0x80 != 0 && now & 0x80 == 0{
 		c.setBit(Carry)
 	}else{
 		c.unsetBit(Carry)
 	}
+}
+*/
+
+func (c *Cpu) updateC2(r int){
+	if r > 0xFF{
+		c.setBit(Carry)
+	}else{
+		c.unsetBit(Carry)
+	}
+
 }
 
 func (c *Cpu) lda(w word){
@@ -191,11 +209,20 @@ func (c *Cpu) tya(){
 }
 
 func (c *Cpu) adc(w word){
-	prev := c.A
-	c.A = c.A + c.bus.Load(w) + c.status(Carry)
-	c.updateC(prev, c.A)
-	c.updateV(prev, c.A)
+	a := c.A
+	b := c.bus.Load(w)
+	cy := c.status(Carry)
+	c.A = a + b + cy
+
+	// TODO !!!
 	c.updateNZ(c.A)
+	c.updateC2(int(a)+int(b)+int(cy))
+
+	if (a^b)&0x80 == 0 && (a^c.A)&0x80 != 0 {
+		c.setBit(Overflow)
+	} else {
+		c.unsetBit(Overflow)
+	}
 }
 
 func (c *Cpu) and(w word){
@@ -207,12 +234,12 @@ func (c *Cpu) asl(isAccumulator bool, addr word){
 	if isAccumulator{
 		prev := c.A
 		c.A <<= 1
-		c.updateC(prev, c.A)
+		c.updateC2(int(prev) << 1)
 		c.updateNZ(c.A)
 	}else{
 		v := c.bus.Load(addr)
 		c.bus.Store(addr, v << 1)
-		c.updateC(v, v << 1)
+		c.updateC2(int(v) << 1)
 		c.updateNZ(v)
 	}
 }
@@ -305,12 +332,12 @@ func (c *Cpu) lsr(isAccumulator bool, addr word){
 	if isAccumulator{
 		a:=c.A
 		c.A<<=1
-		c.updateC(a, c.A)
+		c.updateC2(int(a)>>1)
 		c.updateNZ(c.A)
 	}else{
 		v := c.bus.Load(addr)
 		c.bus.Store(addr, v>>1)
-		c.updateC(v, v>>1)
+		c.updateC2(int(v)>>1)
 		c.updateNZ(v)
 	}
 }
@@ -325,15 +352,15 @@ func (c *Cpu) rol(isAccumulator bool, addr word){
 		return (b << 1 & 0xFE) | (b >> 7)
 	}
 	if isAccumulator{
-		prev := c.A
+		// TODO prev := c.A
 		c.A = rotateLeft(c.A)
-		c.updateC(prev, c.A)
+		// TODO c.updateC2(rotateLeft(prev))
 		c.updateNZ(c.A)
 	}else{
 		prev := c.bus.Load(addr)
 		v := rotateLeft(prev)
 		c.bus.Store(addr, v)
-		c.updateC(prev, v)
+		c.updateC2(int(rotateLeft(prev)))
 		c.updateNZ(v)
 	}
 }
@@ -343,23 +370,25 @@ func (c *Cpu) ror(isAccumulator bool, addr word) {
 		return b >> 1 | (b << 7 & 0x80)
 	}
 	if isAccumulator {
-		prev := c.A
+		// prev := c.A
 		c.A = rotateRight(c.A)
-		c.updateC(prev, c.A)
+		// TODO c.updateC(rotateRight(prev))
 		c.updateNZ(c.A)
 	} else {
 		prev := c.bus.Load(addr)
 		v := rotateRight(prev)
 		c.bus.Store(addr, v)
-		c.updateC(prev, v)
+		// TODO c.updateC(prev, v)
 	}
 }
 
 func (c *Cpu) sbc(addr word){
-	prev := c.A
+	a := c.A
+	b := c.bus.Load(addr)
+	cy := 1 - c.status(Carry)
 	c.A = c.A - c.bus.Load(addr) - (1 - c.status(Carry))
-	c.updateC(prev, c.A)
-	c.updateV(prev, c.A)
+	c.updateC2(int(a)+int(b)+int(cy))
+	c.updateV(a, c.A)
 	c.updateNZ(c.A)
 }
 
@@ -408,18 +437,16 @@ func (c *Cpu) jmp(addr word){
 }
 
 func (c *Cpu) jsr(addr word){
-	// NEED - 1?
-	c.pushWord(c.PC)
+	c.pushWord(c.PC - 1)
 	c.jmp(addr)
 }
 
 func (c *Cpu) rts(){
-	// NEED + 1?
-	c.PC = c.popWord()
+	c.PC = c.popWord() + 1
 }
 
 func (c *Cpu) rti() {
-	c.P = c.pop()&0xEF | 0x20
+	c.P = c.pop() & 0xEF | 0x20
 	c.PC = c.popWord()
 }
 
@@ -503,15 +530,55 @@ func (c *Cpu) sei(){
 	c.setBit(Irq)
 }
 
+func (c *Cpu) sre(){
+	// do nothing on NES
+}
+
 func (c *Cpu) brk(){
-	c.pushWord(c.PC)
-	c.php()
-	c.sei()
-	c.PC = Irq
+	// c.irq()
 }
 
 func (c *Cpu) nop(){
 	// nop
+}
+
+func (c *Cpu) nmi(){
+	c.pushWord(c.PC)
+	c.php()
+	addr := c.bus.Loadw(0xFFFA)
+	c.jmp(addr)
+	c.setIrq()
+	c.cycle+=7
+}
+
+func (c *Cpu) reset(){
+	c.pushWord(c.PC)
+	c.php()
+	addr := c.bus.Loadw(0xFFFC)
+	c.jmp(addr)
+	c.setIrq()
+	c.cycle += 7
+}
+
+func (c *Cpu) irq(){
+	c.pushWord(c.PC)
+	c.php()
+	addr := c.bus.Loadw(0xFFFE)
+	c.jmp(addr)
+	c.setIrq()
+	c.cycle += 7
+}
+
+func (c *Cpu) InterruptNmi(){
+	c.intrrupt = c.nmi
+}
+
+func (c *Cpu) interruptReset(){
+	c.intrrupt = c.reset
+}
+
+func (c *Cpu) interruptIrq(){
+	c.intrrupt = c.irq
 }
 
 func (c *Cpu) decode(b byte) Instruction{
@@ -644,6 +711,8 @@ func (c *Cpu) execute(inst Instruction, w word){
 		c.brk()
 	case "NOP":
 		c.nop()
+	case "SRE":
+		c.sre()
 	default:
 		abort("panic: unknown mnemonic `%s` was invoked.", inst.mnemonic)
 	}

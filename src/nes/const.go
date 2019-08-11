@@ -48,6 +48,7 @@ var instructions = map[byte]Instruction{
 	0x43: Instruction{"SRE", IndirectX, 8},
 	0x45: Instruction{"EOR", Zeropage, 3},
 	0x46: Instruction{"LSR", Zeropage, 5},
+	0x47: Instruction{"SRE", Zeropage, 5},
 	0x48: Instruction{"PHA", Implied, 3},
 	0x49: Instruction{"EOR", Immediate, 2},
 	0x4C: Instruction{"JMP", Absolute, 3},

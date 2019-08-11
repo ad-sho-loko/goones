@@ -2,6 +2,7 @@ package nes
 
 import (
 	"errors"
+	"fmt"
 	"image"
 )
 
@@ -48,18 +49,17 @@ func (n *Nes) Run(){
 
 	for !n.step(){
 	}
-
-	/*
-
-	for cycles < n.cpu.cycle {
-		n.Run()
-	}
-	n.cpu.cycle = 0
-	*/
-
 }
 
 func (n *Nes) step() bool {
+
+	// check interrupt
+	if n.cpu.intrrupt != nil && !n.cpu.isIrqForbitten(){
+		fmt.Println("========= Interrupt! =========")
+		n.cpu.intrrupt()
+	}
+	n.cpu.intrrupt = nil
+
 	pc := n.cpu.PC
 
 	// decode
@@ -69,7 +69,7 @@ func (n *Nes) step() bool {
 	addr := n.cpu.solveAddrMode(inst.addrMode)
 
 	// for debug
-	n.cpu.dump(b, addr, inst.mnemonic, inst.addrMode)
+	// n.cpu.dump(b, addr, inst.mnemonic, inst.addrMode)
 
 	n.cpu.advance(inst.addrMode)
 	n.cpu.execute(inst, addr)
@@ -88,6 +88,6 @@ func (n *Nes) Buffer() *image.RGBA {
 	return n.ppu.renderer.Buffer()
 }
 
-func (n *Nes) PushKey(key Key) {
-	n.bus.controller.set(key,1)
+func (n *Nes) PushButton(b [8]bool) {
+	n.bus.controller.SetButton(b)
 }

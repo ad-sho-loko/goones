@@ -1,8 +1,10 @@
 package nes
 
 type Controller struct {
-	resetFlag bool
+	reset byte
 	counter int
+	buttons [8]bool
+	/*
 	A byte
 	B byte
 	Select byte
@@ -11,20 +13,10 @@ type Controller struct {
 	Down byte
 	Left byte
 	Right byte
+	*/
 }
 
 type Key uint
-
-const(
-	A Key = iota
-	B
-	Select
-	Start
-	Up
-	Down
-	Left
-	Right
-)
 
 func NewController() *Controller{
 	return &Controller{
@@ -32,51 +24,28 @@ func NewController() *Controller{
 	}
 }
 
-func (c *Controller) read() byte{
-	var b byte = 0
+func (c *Controller) SetButton(b [8]bool){
+	c.buttons = b
+}
 
-	switch c.counter {
-	case 0: b = c.A
-	case 1: b = c.B
-	case 2: b = c.Select
-	case 3: b = c.Start
-	case 4: b = c.Up
-	case 5: b = c.Down
-	case 6: b = c.Left
-	case 7: b = c.Right
+func (c *Controller) read() byte{
+	b := byte(0)
+
+	if c.counter < 8 && c.buttons[c.counter] {
+		b = 1
 	}
 
 	c.counter++
-	c.counter%=8
+	if c.reset&1 == 1 {
+		c.counter = 0
+	}
+
 	return b
 }
 
-func (c *Controller) reset(b byte){
-	if !c.resetFlag && b == 1{
-		c.resetFlag = true
-	}else if c.resetFlag && b == 0{
-		c.resetFlag = false
+func (c *Controller) write(b byte){
+	c.reset = b
+	if c.reset & 1 == 1 {
 		c.counter = 0
-		c.A = 0
-		c.B  = 0
-		c.Select = 0
-		c.Start = 0
-		c.Up = 0
-		c.Down = 0
-		c.Left = 0
-		c.Right = 0
-	}
-}
-
-func (c *Controller) set(key Key, b byte){
-	switch key {
-	case A: c.A = b
-	case B: c.B = b
-	case Select: c.Select = b
-	case Start: c.Start = b
-	case Up: c.Up = b
-	case Down: c.Down = b
-	case Left: c.Left = b
-	case Right: c.Right = b
 	}
 }

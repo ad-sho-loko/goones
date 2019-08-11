@@ -4,14 +4,12 @@ import (
 	"github.com/go-gl/gl/v2.1/gl"
 	"github.com/go-gl/glfw/v3.2/glfw"
 	"go_nes/src/nes"
-	"image"
 )
 
 type Director struct {
 	nes *nes.Nes
 	window *glfw.Window
 	gameView View
-	ch chan *image.RGBA
 }
 
 func newDirector(nes *nes.Nes, window *glfw.Window) *Director {
@@ -23,12 +21,39 @@ func newDirector(nes *nes.Nes, window *glfw.Window) *Director {
 
 func (d *Director) setKeyCallback(){
 	callback := func(w *glfw.Window, key glfw.Key, scancode int, action glfw.Action, mods glfw.ModifierKey){
-		switch key {
-		case glfw.KeyUp : d.nes.PushKey(nes.Up)
-		case glfw.KeyDown : d.nes.PushKey(nes.Down)
-		case glfw.KeyLeft : d.nes.PushKey(nes.Left)
-		case glfw.KeyRight : d.nes.PushKey(nes.Right)
+		if !(action == glfw.Press || action == glfw.Release){
+			return
 		}
+
+		// 両方押したとき周りの挙動が少しおかしいので要修正
+		var b [8]bool
+		var isPush = action == glfw.Press
+		switch key {
+		case glfw.KeyA:
+			b[0] = isPush
+			fallthrough
+		case glfw.KeyB:
+			b[1] = isPush
+			fallthrough
+		case glfw.KeyEnter :
+			b[2] = isPush
+			fallthrough
+		case glfw.KeyRightShift :
+			b[3] = isPush
+			fallthrough
+		case glfw.KeyUp :
+			b[4] = isPush
+			fallthrough
+		case glfw.KeyDown :
+			b[5] = isPush
+			fallthrough
+		case glfw.KeyLeft :
+			b[6] = isPush
+			fallthrough
+		case glfw.KeyRight :
+			b[7] = isPush
+		}
+		d.nes.PushButton(b)
 	}
 	d.window.SetKeyCallback(callback)
 }

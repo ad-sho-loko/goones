@@ -42,6 +42,11 @@ func NewPpu(bus *Bus, chrRom []byte, r *Renderer) *Ppu{
 	}
 }
 
+// VBlank時にNMI割込の発生(1:On, 0:Off)
+func (p *Ppu) isAbleNmiVblank() bool{
+	return p.PpuCtrl & 0x80 != 0
+}
+
 func (p *Ppu) writePpuCtrl(b byte){
 	p.PpuCtrl = b
 }
@@ -71,10 +76,6 @@ func (p *Ppu) writeOamData(b byte){
 
 	p.spriteCounter++
 	p.spriteCounter %= 4
-}
-
-func (p *Ppu) writeSprites(){
-
 }
 
 func (p *Ppu) writePpuAddr(b byte){
@@ -116,6 +117,13 @@ func (p *Ppu) run(cycle uint64) bool{
 		p.cycle -= 341
 		p.renderer.line++
 
+		if p.renderer.line == 241{
+			if p.isAbleNmiVblank(){
+				p.bus.cpu.InterruptNmi()
+			}
+		}
+
+		// これ毎回やる必要ないのでは？
 		if p.renderer.line > 240 && p.renderer.line <= 262{
 			p.onVrank()
 		}else{
@@ -127,7 +135,6 @@ func (p *Ppu) run(cycle uint64) bool{
 		}
 
 		if p.renderer.line == 262 {
-
 			p.renderer.sprites = p.spriteBuffer
 			p.renderer.backgroundPalette = p.getBackgroundPalette()
 			p.renderer.spritePalette = p.getSpritePalette()
