@@ -78,7 +78,7 @@ func (b *Bus) Store(addr word, v byte){
 func (b *Bus) dmaTransfer(hund byte) {
 	addr := word(hund) << 8
 	var i word
-	for i=0; i<0x100; i++{
+	for i=0; i<64; i++{
 		b.Store(0x2004, b.Load(addr+i*4))
 		b.Store(0x2004, b.Load(addr+i*4+1))
 		b.Store(0x2004, b.Load(addr+i*4+2))

@@ -19,6 +19,7 @@ type Ppu struct {
 	renderer *Renderer
 
 	// Sprite RAM
+	spriteId int
 	spriteCounter int
 	spriteBuffer [64]*Sprite
 	y byte
@@ -63,11 +64,17 @@ func (p *Ppu) writeOamData(b byte){
 		p.attr = b
 	}else if p.spriteCounter == 3 {
 		p.x = b
-		p.spriteBuffer[p.tileIndex] = p.getSprite(int(p.tileIndex))
+		p.spriteBuffer[p.spriteId] = p.getSprite(int(p.tileIndex))
+		p.spriteId++
+		p.spriteId%=64
 	}
 
 	p.spriteCounter++
 	p.spriteCounter %= 4
+}
+
+func (p *Ppu) writeSprites(){
+
 }
 
 func (p *Ppu) writePpuAddr(b byte){
