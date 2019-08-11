@@ -138,13 +138,13 @@ func (p *Ppu) run(cycle uint64) bool{
 		p.cycle -= 341
 		p.renderer.line++
 
+		if p.renderer.line <= 240 && p.renderer.line % 8 == 0 {
+			p.buildBackground((p.renderer.line - 1) / 8, p.renderer.tiles)
+		}
+
 		// Start Vblank
 		if p.renderer.line == 241{
 			p.onVblank()
-		}
-
-		if p.renderer.line <= 240 && p.renderer.line % 8 == 0 {
-			p.buildBackground((p.renderer.line - 1) / 8, p.renderer.tiles)
 		}
 
 		// End Vblank
@@ -160,59 +160,67 @@ func (p *Ppu) run(cycle uint64) bool{
 type Tile struct {
 	paletteId int
 	bytes     [8][8]byte
+	scrollX byte
+	scrollY byte
 }
 
 // build the background in one line.
 func (p *Ppu) buildBackground(y int, renderTiles []*Tile){
 	// 30 loops in outer methods.
+
 	for x:=0; x<32; x++{
-		sprite, palleteId := p.buildTile(x, y)
+		// ややこしすぎるので関数化する
+		// readPalette, readAttributeなどにしたい
+		// お手本: tileX := x + int(int(p.PpuScrollX) + ((nameTableId % 2) * 256)) / 8
+
+		// TODO : fix now!
+		tileX := x + int(p.PpuScrollX) / 8
+		xx := tileX % 32
+
+		// nameTableId := int(tileX / 32) % 2 // tableIdOffset
+		// nameTableOffset := nameTableId * 0x400
+
+		sprite, palleteId := p.buildTile(xx, y, 0x0000)
 		renderTiles[y*32+x] = &Tile{
 			bytes:     sprite,
 			paletteId: palleteId,
+			scrollX: p.PpuScrollX,
+			scrollY: p.PpuScrollY,
 		}
 	}
 }
 
 // Tile is 8px * 8px
-func (p *Ppu) buildTile(x, y int)([8][8]byte, int){
-	spriteId := p.getSpriteId(x, y)
+func (p *Ppu) buildTile(x, y, offset int)([8][8]byte, int){
+	spriteId := p.getSpriteId(x, y, offset)
 	blockId := p.getBlockId(x, y)
-	attr := p.getAttribute(x, y)
+	attr := p.getAttribute(x, y, offset)
 	paletteId := (attr >> uint(blockId) * 2) & 0x03
 	// fmt.Printf("(%d,%d) blockId:%d, spriteId:%d attr:%d palleteId:%d\n", x, y, blockId, spriteId, attr, paletteId)
-	return p.buildSprite(0x0000, spriteId), paletteId
+	return p.buildSprite(spriteId, 0x0000), paletteId
 }
 
-func (p *Ppu) getAttribute(x, y int) int{
-	// 0x2000 -  => ネームテーブル + 0x23C0 -  => 属性テーブル
-	addr := int(x / 4) + (int(y / 4) * 8 + 0x2000 + 0x03C0)
-	return int(p.ram.load(word(addr)))
-}
-
-// blockId sets up as follow:
-// 16 tiles * 15 tiles = 260
-// (0)(1)
-// (2)(3)
 func (p *Ppu) getBlockId(x, y int) int{
 	return int((x % 4) / 2) + (int((y % 4) / 2)) * 2
 }
 
-// spriteId is which element in name table use in that bytes
-// スプライトIDはタイルにどのスプライトを適用させるか。0x2000以降に入っている。
-func (p *Ppu) getSpriteId(x, y int) int{
-	addr := word(y * 32 + x + 0x2000)
+func (p *Ppu) getAttribute(x, y, offset int) int{
+	addr := int(x / 4) + (int(y / 4) * 8) + 0x03C0 + offset // + 0x2000
+	return int(p.ram.load(word(addr)))
+}
+
+// Gets sprite ids from the name table.
+func (p *Ppu) getSpriteId(x, y, offset int) int{
+	addr := word(y * 32 + x + 0x2000 +  offset)
 	return int(p.ram.load(addr))
 }
 
-// SPRITE is 8px * 8px (built by 64bit + 64bit)
-func (p *Ppu) buildSprite(offset word, spriteId int) [8][8]byte{
+func (p *Ppu) buildSprite(spriteId int, offset word) [8][8]byte{
 	var sprite [8][8]byte
 	var i, j word
 	for i = 0; i<16; i++{
 		for  j = 0; j<8; j++{
-			// calculates the pattern table address.
-			addr := offset + word(spriteId) * 16 + i
+			addr := word(spriteId) * 16 + i + offset
 			b := p.ram.load(addr)
 			if b & (0x80 >> j) != 0x00{
 				sprite[i%8][j] += 0x01 << uint(i/8) // 0, 1, 3
@@ -263,7 +271,7 @@ type Sprite struct {
 func (p *Ppu) getSprite(tileIndex int) *Sprite{
 	// tileIndexはどのタイル(.spr)を使うかを決めるもの
 	// spriteIdはレンダリングのために連番をつけただけ
-	bytes := p.buildSprite(0x1000, tileIndex)
+	bytes := p.buildSprite(tileIndex, 0x1000)
 
 	return &Sprite{
 		y:p.y,

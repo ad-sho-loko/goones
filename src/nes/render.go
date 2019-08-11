@@ -50,14 +50,17 @@ func (r *Renderer) renderBackground(background []*Tile){
 // render 1 tile (8px * 8px)
 // TileXはそのタイルの左上のx座標を指している
 func (r *Renderer) renderTile(tile *Tile, tileX, tileY int){
+	offsetX := tile.scrollX % 8
+	// offsetY := tile.scrollY % 8
 	for i := 0; i < 8; i++ {
 		for j:= 0; j < 8; j++ {
 			paletteIdx := tile.paletteId * 4 + int(tile.bytes[i][j])
 			rgba := r.backgroundPalette[paletteIdx]
-			x := tileX + j
-			y := tileY + i
+			x := tileX + j - int(offsetX)
+			y := tileY + i // - int(tile.scrollY)
 			r.img.SetRGBA(x, y, rgba)
-			// if x >= 0 && 0xFF >= x && y >= 0 && y <= 224 { }
+
+			// if x >= 0 && 0xFF >= x && y >= 0 && y <= 224 {}
 		}
 	}
 }

@@ -68,7 +68,7 @@ func (n *Nes) step() bool {
 	addr := n.cpu.solveAddrMode(inst.addrMode)
 
 	// for debug
-	n.cpu.dump(b, addr, inst.mnemonic, inst.addrMode)
+	// n.cpu.dump(b, addr, inst.mnemonic, inst.addrMode)
 
 	n.cpu.advance(inst.addrMode)
 	n.cpu.execute(inst, addr)
