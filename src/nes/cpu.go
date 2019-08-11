@@ -438,14 +438,14 @@ func (c *Cpu) branch(offset byte){
 	c.PC = word(int(c.PC) + int(int8(offset)))
 }
 
-func (c *Cpu) bcc(w word){
-	if !c.isCarry(){
+func (c *Cpu) bcs(w word){
+	if c.isCarry(){
 		c.branch(c.bus.Load(w))
 	}
 }
 
-func (c *Cpu) bcs(w word){
-	if c.isCarry(){
+func (c *Cpu) bcc(w word){
+	if !c.isCarry(){
 		c.branch(c.bus.Load(w))
 	}
 }
@@ -634,9 +634,9 @@ func (c *Cpu) solveAddrMode(mode AddrMode) word {
 	case Zeropage:
 		return word(c.bus.Load(c.PC + 1))
 	case ZeropageX:
-		return word(c.bus.Load(c.PC + 1) + c.X)
+		return word(c.bus.Load(c.PC + 1) + c.X) & 0xFF
 	case ZeropageY:
-		return word(c.bus.Load(c.PC + 1) + c.Y)
+		return word(c.bus.Load(c.PC + 1) + c.Y) & 0xFF
 	case Absolute:
 		return c.bus.Loadw(c.PC + 1)
 	case AbsoluteX:
@@ -645,10 +645,13 @@ func (c *Cpu) solveAddrMode(mode AddrMode) word {
 		return c.bus.Loadw(c.PC + 1) + word(c.Y)
 	case Indirect:
 		return c.bus.Loadw(c.bus.Loadw(c.PC + 1))
+		// return c.bus.BugLoadw(c.bus.Loadw(c.PC + 1))
 	case IndirectX:
 		return c.bus.Loadw(word(c.bus.Load(c.PC + 1) + c.X))
+		// return c.bus.BugLoadw(word(c.bus.Load(c.PC + 1) + c.X))
 	case IndirectY:
 		return c.bus.Loadw(word(c.bus.Load(c.PC + 1))) + word(c.Y)
+		// return c.bus.BugLoadw(word(c.bus.Load(c.PC + 1))) + word(c.Y)
 	default:
 		abort("panic: unknown addrMode `%s` was called when solving", mode)
 	}

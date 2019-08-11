@@ -33,8 +33,9 @@ func (b *Bus) Load(addr word) byte{
 		return b.controller.read()
 	} else if addr < 0x4020 {
 		// I/Oポート
+		return 0x00
 	} else if addr >= 0x6000 && addr < 0x8000{
-		// return b.prgRom[addr - 0x6000]
+		return b.prgRom[addr - 0x6000]
 	} else if addr >= 0x8000 {
 		return b.prgRom[addr - 0x8000]
 	}
@@ -48,6 +49,14 @@ func (b *Bus) Loadw(addr word) word {
 	upper := word(b.Load(addr+1))
 	bottom := word(b.Load(addr))
 	return upper << 8 | bottom
+}
+
+func (b *Bus) BugLoadw(addr word) word {
+	a := addr
+	by := (a & 0xFF00) | word(byte(a)+1)
+	lo := b.Load(a)
+	hi := b.Load(by)
+	return word(hi)<<8 | word(lo)
 }
 
 func (b *Bus) Store(addr word, v byte){
@@ -79,13 +88,9 @@ func (b *Bus) Store(addr word, v byte){
 	} else if addr == 0x4016{
 		// 1P
 		b.controller.write(v)
-	} else if addr >= 0x6000 && addr < 0x8000{
-		//
-	} else if addr >= 0x8000 && addr <= 0xBFFF{
-		//
-	} else if addr >= 0xC000 {
-		//
-	}else {
+	} else if addr < 0x4020{
+		// sound etc..
+	} else {
 		abort("[Store] Not implementd address 0x%x", addr)
 	}
 }
