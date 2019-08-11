@@ -39,7 +39,13 @@ func (n *Nes) Init() error {
 		return errors.New("cassette must be set")
 	}
 
-	n.cpu.PC = 0x8000
+	// n.cpu.PC = 0x8000
+	n.cpu.PC = 0xc000
+
+	n.cpu.S = 0xFD
+	n.cpu.P = 0x24
+	n.cpu.cycle = 7
+
 	return nil
 }
 
@@ -52,7 +58,7 @@ func (n *Nes) Run(){
 
 func (n *Nes) step() bool {
 
-	// check interrupt TODO
+	// check interrupt
 	if n.cpu.intrrupt != nil && !n.cpu.isIrqForbitten(){
 		// fmt.Println("========= Interrupt! =========")
 		n.cpu.intrrupt()
@@ -68,7 +74,7 @@ func (n *Nes) step() bool {
 	addr := n.cpu.solveAddrMode(inst.addrMode)
 
 	// for debug
-	// n.cpu.dump(b, addr, inst.mnemonic, inst.addrMode)
+	n.cpu.dump(b, addr, inst.mnemonic, inst.addrMode)
 
 	n.cpu.advance(inst.addrMode)
 	n.cpu.execute(inst, addr)

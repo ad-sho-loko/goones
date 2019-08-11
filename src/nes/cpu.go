@@ -99,7 +99,7 @@ func (c *Cpu) isNegative() bool{
 }
 
 func (c *Cpu) isOverflow() bool{
-	return c.P & Negative != 0
+	return c.P & Overflow != 0
 }
 
 func (c *Cpu) isIrqForbitten() bool{
@@ -107,7 +107,7 @@ func (c *Cpu) isIrqForbitten() bool{
 }
 
 func (c *Cpu) updateNZ(b byte){
-	if b == 0x00{
+	if b == 0x00 {
 		c.setBit(Zero)
 	}else{
 		c.unsetBit(Zero)
@@ -120,9 +120,8 @@ func (c *Cpu) updateNZ(b byte){
 	}
 }
 
-// not good
 func (c *Cpu) updateV(prev byte, now byte){
-	if prev & 0x80 == 0 && now & 0x80 != 0{
+	if prev & 0x80 != 0 && now & 0x80 != 0{
 		c.setBit(Overflow)
 	} else{
 		c.unsetBit(Overflow)
@@ -186,6 +185,7 @@ func (c *Cpu) txa(){
 
 func (c *Cpu) txs(){
 	c.S = c.X
+	// c.updateNZ(c.S)
 	// nothing updates
 }
 
@@ -369,9 +369,15 @@ func (c *Cpu) ror(isAccumulator bool, addr word) {
 func (c *Cpu) sbc(addr word){
 	a := c.A
 	b := c.bus.Load(addr)
-	cy := 1 - c.status(Carry)
-	c.A = c.A - c.bus.Load(addr) - (1 - c.status(Carry))
-	c.updateC(int(a)+int(b)+int(cy))
+	cy := c.status(Carry)
+	c.A = a - b - (1 - cy)
+
+	if int(a)-int(b)-int(1-cy) >= 0{
+		c.setBit(Carry)
+	} else {
+		c.unsetBit(Carry)
+	}
+
 	c.updateV(a^b, a^c.A)
 	c.updateNZ(c.A)
 }
@@ -413,7 +419,7 @@ func (c *Cpu) pla(){
 }
 
 func (c *Cpu) plp(){
-	c.P = c.pop()
+	c.P = c.pop() & 0xEF | 0x20
 }
 
 func (c *Cpu) jmp(addr word){
@@ -481,7 +487,7 @@ func (c *Cpu) bvc(w word){
 }
 
 func (c *Cpu) bvs(w word){
-	if !c.isOverflow(){
+	if c.isOverflow(){
 		c.branch(c.bus.Load(w))
 	}
 }
@@ -491,7 +497,7 @@ func (c *Cpu) clc(){
 }
 
 func (c *Cpu) cld(){
-	// Not Implemented
+	c.unsetBit(Decimal)
 }
 
 func (c *Cpu) cli(){
@@ -543,6 +549,22 @@ func (c *Cpu) kil(){
 }
 
 func (c *Cpu) isc(){
+	// nop
+}
+
+func (c *Cpu) sax(){
+	// nop
+}
+
+func (c *Cpu) las(){
+	// nop
+}
+
+func (c *Cpu) slo(){
+	// nop
+}
+
+func (c *Cpu) anc(){
 	// nop
 }
 
@@ -789,13 +811,21 @@ func (c *Cpu) execute(inst Instruction, w word){
 		c.lax() // do nothing
 	case "ISC":
 		c.isc() // do nothing
+	case "SAX":
+		c.sax() // do nothing
+	case "SLO":
+		c.sax() // do nothing
+	case "LAS":
+		c.las() // do nothing
+	case "ANC":
+		c.anc() // do nothing
 	default:
 		abort("panic: unknown mnemonic `%s` was invoked.", inst.mnemonic)
 	}
 }
 
 func (c *Cpu) dump(b byte, arg word, mne string, mode AddrMode){
-	fmt.Printf("[PC:0x%4x, A:0x%2x, X:0x%2x, Y:0x%2x S:%08b] " +
+	fmt.Printf("[PC:0x%4x, A:0x%2x, X:0x%2x, Y:0x%2x SP:0x%x P:0x%x CYC:%d] " +
 		"%2x, %4x ## %s (%s) \n",
-		c.PC, c.A, c.X, c.Y, c.P, b, arg, mne, mode)
+		c.PC, c.A, c.X, c.Y, c.S, c.P, c.cycle, b, arg, mne, mode)
 }

@@ -40,7 +40,6 @@ func (r *Renderer) render(){
 }
 
 func (r *Renderer) renderBackground(background []*Tile){
-	// fix : 右端のBGが更新されないバグあり
 	for i := 0; i < len(background); i++ {
 		x := (i % 32) * 8
 		y := int(i / 32) * 8
@@ -57,10 +56,10 @@ func (r *Renderer) renderTile(tile *Tile, tileX, tileY int){
 			rgba := r.backgroundPalette[paletteIdx]
 			x := tileX + j - int(offsetX)
 			y := tileY + i // - int(offsetY)
-			r.img.SetRGBA(x, y, rgba)
 
-			// if x >= 0 && 0xFF >= x && y >= 0 && y <= 224 {
-		    // }
+			if x >= 0 && x <= 0xFF && y >= 0 && y < 240 {
+				r.img.SetRGBA(x, y, rgba)
+			}
 		}
 	}
 }
@@ -106,6 +105,7 @@ func (r *Renderer) renderSprite(sprite *Sprite){
 		sprite.bytes = r.reverse(sprite.bytes, false)
 	}
 
+	// fix : 右端のSpriteが更新されないバグあり
 	for i := 0; i < 8; i++ {
 		for j:= 0; j < 8; j++ {
 
@@ -115,8 +115,10 @@ func (r *Renderer) renderSprite(sprite *Sprite){
 
 			paletteIdx := int(sprite.paletteId) * 4 + int(sprite.bytes[i][j])
 			rgba := r.spritePalette[paletteIdx]
-			r.img.SetRGBA(int(sprite.x)+j, int(sprite.y)+i, rgba)
+			x := int(sprite.x) + j
+			y := int(sprite.y) + i
 
+			r.img.SetRGBA(x, y, rgba)
 		}
 	}
 }

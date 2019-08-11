@@ -91,7 +91,7 @@ func (b *Bus) Store(addr word, v byte){
 	} else if addr < 0x4020{
 		// sound etc..
 	} else {
-		abort("[Store] Not implementd address 0x%x", addr)
+		// abort("[Store] Not implementd address 0x%x", addr)
 	}
 }
 
