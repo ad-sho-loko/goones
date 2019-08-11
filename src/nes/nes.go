@@ -2,7 +2,6 @@ package nes
 
 import (
 	"errors"
-	"fmt"
 	"image"
 )
 
@@ -55,7 +54,7 @@ func (n *Nes) step() bool {
 
 	// check interrupt
 	if n.cpu.intrrupt != nil && !n.cpu.isIrqForbitten(){
-		fmt.Println("========= Interrupt! =========")
+		// fmt.Println("========= Interrupt! =========")
 		n.cpu.intrrupt()
 	}
 	n.cpu.intrrupt = nil

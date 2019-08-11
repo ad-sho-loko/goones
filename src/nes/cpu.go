@@ -131,24 +131,12 @@ func (c *Cpu) updateV(prev byte, now byte){
 	}
 }
 
-// Use updateC2!
-/*
-func (c *Cpu) updateC(prev byte, now byte){
-	if prev & 0x80 != 0 && now & 0x80 == 0{
-		c.setBit(Carry)
-	}else{
-		c.unsetBit(Carry)
-	}
-}
-*/
-
-func (c *Cpu) updateC2(r int){
+func (c *Cpu) updateC(r int){
 	if r > 0xFF{
 		c.setBit(Carry)
 	}else{
 		c.unsetBit(Carry)
 	}
-
 }
 
 func (c *Cpu) lda(w word){
@@ -213,16 +201,9 @@ func (c *Cpu) adc(w word){
 	b := c.bus.Load(w)
 	cy := c.status(Carry)
 	c.A = a + b + cy
-
-	// TODO !!!
 	c.updateNZ(c.A)
-	c.updateC2(int(a)+int(b)+int(cy))
-
-	if (a^b)&0x80 == 0 && (a^c.A)&0x80 != 0 {
-		c.setBit(Overflow)
-	} else {
-		c.unsetBit(Overflow)
-	}
+	c.updateC(int(a)+int(b)+int(cy))
+	c.updateV(a^b, a^c.A)
 }
 
 func (c *Cpu) and(w word){
@@ -234,12 +215,12 @@ func (c *Cpu) asl(isAccumulator bool, addr word){
 	if isAccumulator{
 		prev := c.A
 		c.A <<= 1
-		c.updateC2(int(prev) << 1)
+		c.updateC(int(prev) << 1)
 		c.updateNZ(c.A)
 	}else{
 		v := c.bus.Load(addr)
 		c.bus.Store(addr, v << 1)
-		c.updateC2(int(v) << 1)
+		c.updateC(int(v) << 1)
 		c.updateNZ(v)
 	}
 }
@@ -332,12 +313,12 @@ func (c *Cpu) lsr(isAccumulator bool, addr word){
 	if isAccumulator{
 		a:=c.A
 		c.A<<=1
-		c.updateC2(int(a)>>1)
+		c.updateC(int(a)>>1)
 		c.updateNZ(c.A)
 	}else{
 		v := c.bus.Load(addr)
 		c.bus.Store(addr, v>>1)
-		c.updateC2(int(v)>>1)
+		c.updateC(int(v)>>1)
 		c.updateNZ(v)
 	}
 }
@@ -348,37 +329,38 @@ func (c *Cpu) ora(b byte){
 }
 
 func (c *Cpu) rol(isAccumulator bool, addr word){
-	rotateLeft := func(b byte) byte{
-		return (b << 1 & 0xFE) | (b >> 7)
+	rotateLeft := func(b byte) word{
+		return word((b << 1 & 0xFE) | (b >> 7))
 	}
 	if isAccumulator{
-		// TODO prev := c.A
-		c.A = rotateLeft(c.A)
-		// TODO c.updateC2(rotateLeft(prev))
+		v := rotateLeft(c.A)
+		c.A = byte(v)
+		c.updateC(int(v))
 		c.updateNZ(c.A)
 	}else{
 		prev := c.bus.Load(addr)
 		v := rotateLeft(prev)
-		c.bus.Store(addr, v)
-		c.updateC2(int(rotateLeft(prev)))
-		c.updateNZ(v)
+		c.bus.Store(addr, byte(v))
+		c.updateC(int(rotateLeft(prev)))
+		c.updateNZ(byte(v))
 	}
 }
 
 func (c *Cpu) ror(isAccumulator bool, addr word) {
-	rotateRight := func(b byte) byte {
-		return b >> 1 | (b << 7 & 0x80)
+	rotateRight := func(b byte) word {
+		return word(b >> 1 | (b << 7 & 0x80))
 	}
+
 	if isAccumulator {
-		// prev := c.A
-		c.A = rotateRight(c.A)
-		// TODO c.updateC(rotateRight(prev))
+		v := rotateRight(c.A)
+		c.A = byte(v)
+		c.updateC(int(v))
 		c.updateNZ(c.A)
 	} else {
 		prev := c.bus.Load(addr)
 		v := rotateRight(prev)
-		c.bus.Store(addr, v)
-		// TODO c.updateC(prev, v)
+		c.bus.Store(addr, byte(v))
+		c.updateC(int(v))
 	}
 }
 
@@ -387,8 +369,8 @@ func (c *Cpu) sbc(addr word){
 	b := c.bus.Load(addr)
 	cy := 1 - c.status(Carry)
 	c.A = c.A - c.bus.Load(addr) - (1 - c.status(Carry))
-	c.updateC2(int(a)+int(b)+int(cy))
-	c.updateV(a, c.A)
+	c.updateC(int(a)+int(b)+int(cy))
+	c.updateV(a^b, a^c.A)
 	c.updateNZ(c.A)
 }
 
@@ -535,7 +517,7 @@ func (c *Cpu) sre(){
 }
 
 func (c *Cpu) brk(){
-	// c.irq()
+	c.irq()
 }
 
 func (c *Cpu) nop(){
@@ -712,7 +694,7 @@ func (c *Cpu) execute(inst Instruction, w word){
 	case "NOP":
 		c.nop()
 	case "SRE":
-		c.sre()
+		c.sre() // do nothing
 	default:
 		abort("panic: unknown mnemonic `%s` was invoked.", inst.mnemonic)
 	}
