@@ -102,11 +102,18 @@ func (p *Ppu) readPpuData() byte{
 	return b
 }
 
-func (p *Ppu) onVrank(){
+func (p *Ppu) onVblank(){
 	p.PpuStatus |= 0x80
+	if p.isAbleNmiVblank(){
+		p.bus.cpu.InterruptNmi()
+	}
 }
 
-func (p *Ppu) notOnVrank() {
+func (p *Ppu) notOnVblank() {
+	p.renderer.sprites = p.spriteBuffer
+	p.renderer.backgroundPalette = p.getBackgroundPalette()
+	p.renderer.spritePalette = p.getSpritePalette()
+	p.renderer.line = 0
 	p.PpuStatus &= 0x7F
 }
 
@@ -117,29 +124,18 @@ func (p *Ppu) run(cycle uint64) bool{
 		p.cycle -= 341
 		p.renderer.line++
 
+		// Start Vblank
 		if p.renderer.line == 241{
-			if p.isAbleNmiVblank(){
-				p.bus.cpu.InterruptNmi()
-			}
-		}
-
-		// これ毎回やる必要ないのでは？
-		if p.renderer.line > 240 && p.renderer.line <= 262{
-			p.onVrank()
-		}else{
-			p.notOnVrank()
+			p.onVblank()
 		}
 
 		if p.renderer.line <= 240 && p.renderer.line % 8 == 0 {
 			p.buildBackground((p.renderer.line - 1) / 8, p.renderer.tiles)
 		}
 
+		// End Vblank
 		if p.renderer.line == 262 {
-			p.renderer.sprites = p.spriteBuffer
-			p.renderer.backgroundPalette = p.getBackgroundPalette()
-			p.renderer.spritePalette = p.getSpritePalette()
-
-			p.renderer.line = 0
+			p.notOnVblank()
 			return true
 		}
 	}
@@ -216,18 +212,27 @@ func (p *Ppu) buildSprite(offset word, spriteId int) [8][8]byte{
 
 func (p *Ppu) getBackgroundPalette() [16]color.RGBA{
 	var currentPalette [16]color.RGBA
-	// background palette
 	for i, b := range p.ram.slice(0x3F00, 0x3F10){
-		currentPalette[i] = SystemPalette[b]
+		if i % 4 == 0 {
+			// 0x3F04, 0x3F08, 0x3CFC are ignored by background.
+			// Instead of here, use these values in the sprite palette.
+			currentPalette[i] = SystemPalette[p.ram.load(0x3F00)]
+		}else{
+			currentPalette[i] = SystemPalette[b]
+		}
 	}
 	return currentPalette
 }
 
 func (p *Ppu) getSpritePalette() [16]color.RGBA{
 	var currentPalette [16]color.RGBA
-	// sprite palette
 	for i, b := range p.ram.slice(0x3F10, 0x3F20){
-		currentPalette[i] = SystemPalette[b]
+		if i % 4 == 0 {
+			// 0x3F10, 0x3F14, 0x3F18, 0x3FC are mirror of 0x3F00, 0x3F04, 0x3F08, 0x3CFC
+			currentPalette[i] = SystemPalette[p.ram.load(word(b - 0x10))]
+		}else{
+			currentPalette[i] = SystemPalette[b]
+		}
 	}
 	return currentPalette
 }
