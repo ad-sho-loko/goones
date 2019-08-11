@@ -28,8 +28,10 @@ func (b *Bus) Load(addr word) byte{
 	} else if addr == 0x4016{
 		// 1P
 		return b.controller.read()
-	} else if addr >= 0x8000 {
+	} else if addr >= 0x8000 && addr <= 0xBFFF{
 		return b.prgRom[addr - 0x8000]
+	} else if addr >= 0xC000 {
+		return b.prgRom[addr - 0xC000]
 	}
 
 	abort("[Load] Not implementd address 0x%x", addr)
@@ -62,10 +64,24 @@ func (b *Bus) Store(addr word, v byte){
 		b.ppu.writePpuAddr(v)
 	} else if addr == 0x2007 {
 		b.ppu.writePpuData(v)
+	} else if addr == 0x4014{
+		// DMA
+		b.dmaTransfer(v)
 	} else if addr == 0x4016{
 		// 1P
 		b.controller.reset(v)
 	} else{
 		abort("[Store] Not implementd address 0x%x", addr)
+	}
+}
+
+func (b *Bus) dmaTransfer(hund byte) {
+	addr := word(hund) << 8
+	var i word
+	for i=0; i<0x100; i++{
+		b.Store(0x2004, b.Load(addr+i*4))
+		b.Store(0x2004, b.Load(addr+i*4+1))
+		b.Store(0x2004, b.Load(addr+i*4+2))
+		b.Store(0x2004, b.Load(addr+i*4+3))
 	}
 }

@@ -13,14 +13,12 @@ type Cpu struct{
 	bus   *Bus
 }
 
-const CPUFrequency = 1789773
-
 const(
 	Carry    = 0x01
 	Zero     = 0x02
 	Irq      = 0x04
 	Decimal  = 0x08
-	Braak    = 0x10
+	Break    = 0x10
 	Reserved = 0x20
 	Overflow = 0x40
 	Negative = 0x80
@@ -192,9 +190,9 @@ func (c *Cpu) tya(){
 	c.updateNZ(c.A)
 }
 
-func (c *Cpu) adc(b byte){
+func (c *Cpu) adc(w word){
 	prev := c.A
-	c.A = c.A + b + c.status(Carry)
+	c.A = c.A + c.bus.Load(w) + c.status(Carry)
 	c.updateC(prev, c.A)
 	c.updateV(prev, c.A)
 	c.updateNZ(c.A)
@@ -415,7 +413,7 @@ func (c *Cpu) jsr(addr word){
 	c.jmp(addr)
 }
 
-func (c *Cpu) rst(){
+func (c *Cpu) rts(){
 	// NEED + 1?
 	c.PC = c.popWord()
 }
@@ -544,15 +542,25 @@ func (c *Cpu) solveAddrMode(mode AddrMode) word {
 	case Immediate:
 		return c.PC + 1
 	case Relative:
-		// ???
 		return c.PC + 1
+	case Zeropage:
+		return word(c.bus.Load(c.PC + 1))
+	case ZeropageX:
+		return word(c.bus.Load(c.PC + 1) + c.X)
+	case ZeropageY:
+		return word(c.bus.Load(c.PC + 1) + c.Y)
 	case Absolute:
 		return c.bus.Loadw(c.PC + 1)
 	case AbsoluteX:
 		return c.bus.Loadw(c.PC + 1) + word(c.X)
 	case AbsoluteY:
 		return c.bus.Loadw(c.PC + 1) + word(c.Y)
-		// memo :return word(int(c.fetchOperandWord(c.PC)) + int(int8(c.X)))
+	case Indirect:
+		return c.bus.Loadw(c.bus.Loadw(c.PC + 1))
+	case IndirectX:
+		return c.bus.Loadw(word(c.bus.Load(c.PC + 1)) + word(c.X))
+	case IndirectY:
+		return c.bus.Loadw(word(c.bus.Load(c.PC + 1))) + word(c.Y)
 	default:
 		abort("panic: unknown addrMode `%s` was called when solving", mode)
 	}
@@ -569,12 +577,18 @@ func (c *Cpu) execute(inst Instruction, w word){
 		c.ldy(w)
 	case "STA":
 		c.sta(w)
-	case "SEI":
-		c.sei()
+	case "STX":
+		c.stx(w)
+	case "STY":
+		c.sty(w)
 	case "CPX":
 		c.cpx(w)
 	case "TXS":
 		c.txs()
+	case "BIT":
+		c.bit(w)
+	case "ADC":
+		c.adc(w)
 	case "AND":
 		c.and(w)
 	case "INC":
@@ -587,14 +601,49 @@ func (c *Cpu) execute(inst Instruction, w word){
 		c.dex()
 	case "DEY":
 		c.dey()
-	case "BPL":
-		c.bpl(w)
-	case "BNE":
-		c.bne(w)
+	case "CLC":
+		c.clc()
+	case "CLD":
+		c.cld()
+	case "CLI":
+		c.cli()
+	case "CLV":
+		c.clv()
+	case "SEC":
+		c.sec()
+	case "SED":
+		c.sed()
+	case "SEI":
+		c.sei()
+	// ジャンプ命令
 	case "JMP":
 		c.jmp(w)
+	case "JSR":
+		c.jsr(w)
+	case "RTS":
+		c.rts()
+	case "RTI":
+		c.rti()
+	case "BCC":
+		c.bcc(w)
+	case "BCS":
+		c.bcs(w)
+	case "BEQ":
+		c.beq(w)
+	case "BMI":
+		c.bmi(w)
+	case "BNE":
+		c.bne(w)
+	case "BPL":
+		c.bpl(w)
+	case "BVC":
+		c.bvc(w)
+	case "BVS":
+		c.bvs(w)
 	case "BRK":
 		c.brk()
+	case "NOP":
+		c.nop()
 	default:
 		abort("panic: unknown mnemonic `%s` was invoked.", inst.mnemonic)
 	}

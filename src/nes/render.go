@@ -16,7 +16,7 @@ type Renderer struct {
 	backgroundPalette [16]color.RGBA
 	spritePalette     [16]color.RGBA
 	img               *image.RGBA
-	sprite            *Sprite
+	sprites           [64]*Sprite
 }
 
 func NewRenderer() *Renderer{
@@ -36,7 +36,7 @@ func (r *Renderer) Buffer() *image.RGBA{
 
 func (r *Renderer) render(){
 	r.renderBackground(r.tiles)
-	r.renderSprite(r.sprite)
+	r.renderSprites(r.sprites)
 }
 
 func (r *Renderer) renderBackground(background []*Tile){
@@ -60,6 +60,14 @@ func (r *Renderer) renderTile(tile *Tile, tileX, tileY int){
 			// if x >= 0 && 0xFF >= x && y >= 0 && y <= 224 { }
 		}
 	}
+}
+
+func (r *Renderer) renderSprites(sprites [64]*Sprite){
+	for _, s := range sprites{
+		if s != nil{
+			r.renderSprite(s)
+		}
+}
 }
 
 func (r *Renderer) renderSprite(sprite *Sprite){

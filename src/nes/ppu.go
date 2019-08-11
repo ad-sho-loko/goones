@@ -20,6 +20,7 @@ type Ppu struct {
 
 	// Sprite RAM
 	spriteCounter int
+	spriteBuffer [64]*Sprite
 	y byte
 	tileIndex byte
 	attr byte
@@ -62,6 +63,7 @@ func (p *Ppu) writeOamData(b byte){
 		p.attr = b
 	}else if p.spriteCounter == 3 {
 		p.x = b
+		p.spriteBuffer[p.tileIndex] = p.getSprite(int(p.tileIndex))
 	}
 
 	p.spriteCounter++
@@ -118,8 +120,7 @@ func (p *Ppu) run(cycle uint64) bool{
 		}
 
 		if p.renderer.line == 262 {
-
-			p.renderer.sprite = p.getSprite()
+			p.renderer.sprites = p.spriteBuffer
 			p.renderer.backgroundPalette = p.getBackgroundPalette()
 			p.renderer.spritePalette = p.getSpritePalette()
 
@@ -155,12 +156,12 @@ func (p *Ppu) buildTile(x, y int)([8][8]byte, int){
 	attr := p.getAttribute(x, y)
 	paletteId := (attr >> uint(blockId) * 2) & 0x03
 	// fmt.Printf("(%d,%d) blockId:%d, spriteId:%d attr:%d palleteId:%d\n", x, y, blockId, spriteId, attr, paletteId)
-	return p.buildSprite(spriteId), paletteId
+	return p.buildSprite(0x0000, spriteId), paletteId
 }
 
 func (p *Ppu) getAttribute(x, y int) int{
-	// 0x2000 -  => ネームテーブル
-	// 0x23C0 -  => 属性テーブル
+	// 0x2000 -  => ネームテーブル + 0x23C0 -  => 属性テーブル
+
 	addr := word(int(x / 4) + (int(y / 4) * 8) + 0x2000 + 0x03C0)
 	return int(p.ram.load(addr))
 }
@@ -176,19 +177,18 @@ func (p *Ppu) getBlockId(x, y int) int{
 // spriteId is which element in name table use in that bytes
 // スプライトIDはタイルにどのスプライトを適用させるか。0x2000以降に入っている。
 func (p *Ppu) getSpriteId(x, y int) int{
-	// https://github.com/bokuweb/flownes/blob/3603b6d05ebf37d55b4b44236cc124c53667ce7b/src/ppu/index.js#L229
 	addr := word(y * 32 + x + 0x2000)
 	return int(p.ram.load(addr))
 }
 
 // SPRITE is 8px * 8px (built by 64bit + 64bit)
-func (p *Ppu) buildSprite(spriteId int) [8][8]byte{
+func (p *Ppu) buildSprite(offset word, spriteId int) [8][8]byte{
 	var sprite [8][8]byte
 	var i, j word
 	for i = 0; i<16; i++{
 		for  j = 0; j<8; j++{
 			// calculates the pattern table address.
-			addr := 0x0000 + word(spriteId) * 16 + i
+			addr := offset + word(spriteId) * 16 + i
 			b := p.ram.load(addr)
 			if b & (0x80 >> j) != 0x00{
 				sprite[i%8][j] += 0x01 << uint(i/8) // 0, 1, 3
@@ -201,7 +201,7 @@ func (p *Ppu) buildSprite(spriteId int) [8][8]byte{
 
 func (p *Ppu) getBackgroundPalette() [16]color.RGBA{
 	var currentPalette [16]color.RGBA
-	// background backgroundPalette
+	// background palette
 	for i, b := range p.ram.slice(0x3F00, 0x3F10){
 		currentPalette[i] = SystemPalette[b]
 	}
@@ -210,7 +210,7 @@ func (p *Ppu) getBackgroundPalette() [16]color.RGBA{
 
 func (p *Ppu) getSpritePalette() [16]color.RGBA{
 	var currentPalette [16]color.RGBA
-	// background backgroundPalette
+	// sprite palette
 	for i, b := range p.ram.slice(0x3F10, 0x3F20){
 		currentPalette[i] = SystemPalette[b]
 	}
@@ -227,19 +227,8 @@ type Sprite struct {
 	paletteId byte
 }
 
-func (p *Ppu) getSprite() *Sprite{
-	var bytes [8][8]byte
-	var i, j word
-
-	for i = 0; i<16; i++{
-		for  j = 0; j<8; j++{
-			// calculates the pattern table address (sprite).
-			b := p.ram.load(0x1000 + word(p.tileIndex) * 16 + i)
-			if b & (0x80 >> j) != 0x00{
-				bytes[i%8][j] += 0x01 << uint(i/8) // 0, 1, 3
-			}
-		}
-	}
+func (p *Ppu) getSprite(tileIndex int) *Sprite{
+	bytes := p.buildSprite(0x1000, tileIndex)
 
 	return &Sprite{
 		y:p.y,
@@ -251,3 +240,17 @@ func (p *Ppu) getSprite() *Sprite{
 		paletteId:p.attr & 0x03,
 	}
 }
+
+
+/*
+var i, j word
+for i = 0; i<16; i++{
+	for  j = 0; j<8; j++{
+		// calculates the pattern table address (sprite).
+		// b := p.ram.load(0x1000 + word(p.tileIndex) * 16 + i)
+		b := p.ram.load(0x1000 + word(id) * 16 + i)
+		if b & (0x80 >> j) != 0x00{
+			bytes[i%8][j] += 0x01 << uint(i/8) // 0, 1, 3
+		}
+	}
+}*/

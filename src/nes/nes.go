@@ -43,30 +43,45 @@ func (n *Nes) Init() error {
 	return nil
 }
 
+// run 60fps
 func (n *Nes) Run(){
-	for{
-		pc := n.cpu.PC
 
-		// decode
-		b := n.bus.Load(pc)
-		inst := n.cpu.decode(b)
-		cycle := inst.cycle
-		addr := n.cpu.solveAddrMode(inst.addrMode)
-
-		// for debug
-		// n.cpu.dump(b, addr, inst.mnemonic, inst.addrMode)
-
-		// execute
-		n.cpu.advance(inst.addrMode)
-		n.cpu.execute(inst, addr)
-
-		n.cpu.cycle += cycle
-
-		if n.ppu.run(cycle * 3){
-			n.ppu.renderer.render()
-			break
-		}
+	for !n.step(){
 	}
+
+	/*
+
+	for cycles < n.cpu.cycle {
+		n.Run()
+	}
+	n.cpu.cycle = 0
+	*/
+
+}
+
+func (n *Nes) step() bool {
+	pc := n.cpu.PC
+
+	// decode
+	b := n.bus.Load(pc)
+	inst := n.cpu.decode(b)
+	cycle := inst.cycle
+	addr := n.cpu.solveAddrMode(inst.addrMode)
+
+	// for debug
+	n.cpu.dump(b, addr, inst.mnemonic, inst.addrMode)
+
+	n.cpu.advance(inst.addrMode)
+	n.cpu.execute(inst, addr)
+
+	n.cpu.cycle += cycle
+
+	if n.ppu.run(cycle * 3){
+		n.ppu.renderer.render()
+		return true
+	}
+
+	return false
 }
 
 func (n *Nes) Buffer() *image.RGBA {

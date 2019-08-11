@@ -36,6 +36,7 @@ func main(){
 	if err != nil{
 		fmt.Println(err)
 	}
+
 	n := nes.NewNes(m)
 	ui.RunUi(n)
 }
