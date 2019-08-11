@@ -29,9 +29,14 @@ func NewCassette(path string) (Ines, error){
 	chrRomStart := HeaderSize + int(bytes[4]) * 0x4000
 	chrROMEnd := chrRomStart + int(bytes[5]) * 0x2000
 
+	prgRom := bytes[prgRomStart:chrRomStart]
+	if bytes[4] == 1 {
+		prgRom = append(prgRom, prgRom...)
+	}
+
 	return &Mapper0{
-		prgRom:bytes[prgRomStart:chrRomStart-1],
-		chrRom:bytes[chrRomStart:chrROMEnd-1],
+		prgRom:prgRom,
+		chrRom:bytes[chrRomStart:chrROMEnd],
 	}, nil
 }
 

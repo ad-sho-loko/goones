@@ -34,11 +34,9 @@ func (b *Bus) Load(addr word) byte{
 	} else if addr < 0x4020 {
 		// I/Oポート
 	} else if addr >= 0x6000 && addr < 0x8000{
-		return b.prgRom[addr - 0x6000]
-	} else if addr >= 0x8000 && addr <= 0xBFFF{
+		// return b.prgRom[addr - 0x6000]
+	} else if addr >= 0x8000 {
 		return b.prgRom[addr - 0x8000]
-	} else if addr >= 0xC000 {
-		return b.prgRom[addr - 0xC000]
 	}
 
 	abort("[Load] Not implementd address 0x%x", addr)
@@ -87,7 +85,7 @@ func (b *Bus) Store(addr word, v byte){
 		//
 	} else if addr >= 0xC000 {
 		//
-	}else{
+	}else {
 		abort("[Store] Not implementd address 0x%x", addr)
 	}
 }
