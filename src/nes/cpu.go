@@ -106,10 +106,6 @@ func (c *Cpu) isIrqForbitten() bool{
 	return c.P & Irq != 0
 }
 
-func (c *Cpu) setIrq(){
-	c.P |= Irq
-}
-
 func (c *Cpu) updateNZ(b byte){
 	if b == 0x00{
 		c.setBit(Zero)
@@ -190,7 +186,7 @@ func (c *Cpu) txa(){
 
 func (c *Cpu) txs(){
 	c.S = c.X
-	c.updateNZ(c.S)
+	// nothing updates
 }
 
 func (c *Cpu) tya(){
@@ -555,6 +551,8 @@ func (c *Cpu) brk(){
 	c.php()
 	addr := c.bus.Loadw(0xFFFE)
 	c.jmp(addr)
+	c.setBit(Irq)
+	c.setBit(Break)
 }
 
 func (c *Cpu) nop(){
@@ -566,7 +564,8 @@ func (c *Cpu) nmi(){
 	c.php()
 	addr := c.bus.Loadw(0xFFFA)
 	c.jmp(addr)
-	c.setIrq()
+	c.setBit(Irq)
+	c.unsetBit(Break)
 	c.cycle+=7
 }
 
@@ -575,7 +574,8 @@ func (c *Cpu) reset(){
 	c.php()
 	addr := c.bus.Loadw(0xFFFC)
 	c.jmp(addr)
-	c.setIrq()
+	c.setBit(Irq)
+	c.unsetBit(Break)
 	c.cycle += 7
 }
 
@@ -584,7 +584,7 @@ func (c *Cpu) irq(){
 	c.php()
 	addr := c.bus.Loadw(0xFFFE)
 	c.jmp(addr)
-	c.setIrq()
+	c.setBit(Irq)
 	c.cycle += 7
 }
 
@@ -792,7 +792,7 @@ func (c *Cpu) execute(inst Instruction, w word){
 }
 
 func (c *Cpu) dump(b byte, arg word, mne string, mode AddrMode){
-	fmt.Printf("[PC:0x%4x, A:0x%2x, X:0x%2x, Y:0x%2x] " +
+	fmt.Printf("[PC:0x%4x, A:0x%2x, X:0x%2x, Y:0x%2x S:%08b] " +
 		"%2x, %4x ## %s (%s) \n",
-		c.PC, c.A, c.X, c.Y, b, arg, mne, mode)
+		c.PC, c.A, c.X, c.Y, c.P, b, arg, mne, mode)
 }

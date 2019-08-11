@@ -129,6 +129,9 @@ func (p *Ppu) notOnVblank() {
 	p.renderer.spritePalette = p.getSpritePalette()
 	p.renderer.line = 0
 	p.PpuStatus &= 0x7F
+	
+	// not cool
+	p.bus.cpu.unsetBit(Irq)
 }
 
 func (p *Ppu) run(cycle uint64) bool{
