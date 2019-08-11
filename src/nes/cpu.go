@@ -200,8 +200,19 @@ func (c *Cpu) adc(w word){
 	cy := c.status(Carry)
 	c.A = a + b + cy
 	c.updateNZ(c.A)
-	c.updateC(int(a)+int(b)+int(cy))
-	c.updateV(a^b, a^c.A)
+
+	if int(a)+int(b)+int(cy) > 0xFF{
+		c.setBit(Carry)
+	}else{
+		c.unsetBit(Carry)
+	}
+
+	if (a^b) & 0x80 == 0 && (a^c.A)&0x80 != 0{
+		c.setBit(Overflow)
+	}else{
+		c.unsetBit(Overflow)
+	}
+
 }
 
 func (c *Cpu) and(w word){
@@ -387,7 +398,7 @@ func (c *Cpu) ror(isAccumulator bool, addr word) {
 			c.unsetBit(Carry)
 		}
 
-		c.A = (c.A << 1) | (cv << 7)
+		c.A = (c.A >> 1) | (cv << 7)
 		c.updateNZ(c.A)
 	} else {
 		cv := c.status(Carry)
@@ -710,14 +721,14 @@ func (c *Cpu) solveAddrMode(mode AddrMode) word {
 	case AbsoluteY:
 		return c.bus.Loadw(c.PC + 1) + word(c.Y)
 	case Indirect:
-		return c.bus.Loadw(c.bus.Loadw(c.PC + 1))
-		// return c.bus.BugLoadw(c.bus.Loadw(c.PC + 1))
+		// return c.bus.Loadw(c.bus.Loadw(c.PC + 1))
+		return c.bus.BugLoadw(c.bus.Loadw(c.PC + 1))
 	case IndirectX:
-		return c.bus.Loadw(word(c.bus.Load(c.PC + 1) + c.X))
-		// return c.bus.BugLoadw(word(c.bus.Load(c.PC + 1) + c.X))
+		// return c.bus.Loadw(word(c.bus.Load(c.PC + 1) + c.X))
+		return c.bus.BugLoadw(word(c.bus.Load(c.PC + 1) + c.X))
 	case IndirectY:
-		return c.bus.Loadw(word(c.bus.Load(c.PC + 1))) + word(c.Y)
-		// return c.bus.BugLoadw(word(c.bus.Load(c.PC + 1))) + word(c.Y)
+		// return c.bus.Loadw(word(c.bus.Load(c.PC + 1))) + word(c.Y)
+		return c.bus.BugLoadw(word(c.bus.Load(c.PC + 1))) + word(c.Y)
 	default:
 		abort("panic: unknown addrMode `%s` was called when solving", mode)
 	}
