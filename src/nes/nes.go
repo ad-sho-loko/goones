@@ -2,6 +2,7 @@ package nes
 
 import (
 	"errors"
+	"fmt"
 	"image"
 )
 
@@ -52,9 +53,9 @@ func (n *Nes) Run(){
 
 func (n *Nes) step() bool {
 
-	// check interrupt
-	if n.cpu.intrrupt != nil && !n.cpu.isIrqForbitten(){
-		// fmt.Println("========= Interrupt! =========")
+	// check interrupt TODO
+	if n.cpu.intrrupt != nil && n.cpu.isIrqForbitten(){
+		fmt.Println("========= Interrupt! =========")
 		n.cpu.intrrupt()
 	}
 	n.cpu.intrrupt = nil
@@ -68,7 +69,7 @@ func (n *Nes) step() bool {
 	addr := n.cpu.solveAddrMode(inst.addrMode)
 
 	// for debug
-	// n.cpu.dump(b, addr, inst.mnemonic, inst.addrMode)
+	n.cpu.dump(b, addr, inst.mnemonic, inst.addrMode)
 
 	n.cpu.advance(inst.addrMode)
 	n.cpu.execute(inst, addr)

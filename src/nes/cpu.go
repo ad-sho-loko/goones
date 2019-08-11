@@ -612,9 +612,9 @@ func (c *Cpu) advance(mode AddrMode){
 	switch mode {
 	case Accumulator, Implied:
 		c.PC += 1
-	case Immediate, Zeropage, ZeropageX, ZeropageY, Relative:
+	case Immediate, Zeropage, ZeropageX, ZeropageY, Relative, IndirectX, IndirectY:
 		c.PC += 2
-	case Absolute, AbsoluteX, AbsoluteY, Indirect, IndirectX, IndirectY:
+	case Absolute, AbsoluteX, AbsoluteY, Indirect:
 		c.PC += 3
 	default:
 		abort("panic: unknown addrMode `%s` was called when advance", mode)
@@ -646,7 +646,7 @@ func (c *Cpu) solveAddrMode(mode AddrMode) word {
 	case Indirect:
 		return c.bus.Loadw(c.bus.Loadw(c.PC + 1))
 	case IndirectX:
-		return c.bus.Loadw(word(c.bus.Load(c.PC + 1)) + word(c.X))
+		return c.bus.Loadw(word(c.bus.Load(c.PC + 1) + c.X))
 	case IndirectY:
 		return c.bus.Loadw(word(c.bus.Load(c.PC + 1))) + word(c.Y)
 	default:
