@@ -120,22 +120,6 @@ func (c *Cpu) updateNZ(b byte){
 	}
 }
 
-func (c *Cpu) updateV(prev byte, now byte){
-	if prev & 0x80 != 0 && now & 0x80 != 0{
-		c.setBit(Overflow)
-	} else{
-		c.unsetBit(Overflow)
-	}
-}
-
-func (c *Cpu) updateC(r int){
-	if r > 0xFF{
-		c.setBit(Carry)
-	}else{
-		c.unsetBit(Carry)
-	}
-}
-
 func (c *Cpu) lda(w word){
 	c.A = c.bus.Load(w)
 	c.updateNZ(c.A)

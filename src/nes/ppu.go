@@ -240,6 +240,7 @@ func (p *Ppu) getBackgroundPalette() [16]color.RGBA{
 		if i % 4 == 0 {
 			// 0x3F04, 0x3F08, 0x3C0C are ignored by background.
 			// Instead of here, use these values in the sprite palette.
+			// currentPalette[i] = SystemPalette[5] // SystemPalette[p.ram.load(0x3F00)]
 			currentPalette[i] = SystemPalette[p.ram.load(0x3F00)]
 		}else{
 			currentPalette[i] = SystemPalette[b]

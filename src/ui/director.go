@@ -31,25 +31,25 @@ func (d *Director) setKeyCallback(){
 		switch key {
 		case glfw.KeyA:
 			b[0] = isPush
-			fallthrough
+			// fallthrough
 		case glfw.KeyB:
 			b[1] = isPush
-			fallthrough
+			// fallthrough
 		case glfw.KeyRightShift :
 			b[2] = isPush
-			fallthrough
+			// fallthrough
 		case glfw.KeyEnter :
 			b[3] = isPush
-			fallthrough
+			// fallthrough
 		case glfw.KeyUp :
 			b[4] = isPush
-			fallthrough
+			// fallthrough
 		case glfw.KeyDown :
 			b[5] = isPush
-			fallthrough
+			// fallthrough
 		case glfw.KeyLeft :
 			b[6] = isPush
-			fallthrough
+			// fallthrough
 		case glfw.KeyRight :
 			b[7] = isPush
 		}
