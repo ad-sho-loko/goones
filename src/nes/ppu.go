@@ -1,6 +1,7 @@
 package nes
 
 import (
+	"fmt"
 	"image/color"
 )
 
@@ -168,7 +169,7 @@ type Tile struct {
 }
 
 // build the background in one line.
-func (p *Ppu) buildBackground(y int, renderTiles []*Tile){
+func (p *Ppu) buildBackground(tileY int, renderTiles []*Tile){
 	// 30 loops in outer methods.
 
 	for x:=0; x<32; x++{
@@ -183,8 +184,8 @@ func (p *Ppu) buildBackground(y int, renderTiles []*Tile){
 		// nameTableId := int(tileX / 32) % 2 // tableIdOffset
 		// nameTableOffset := nameTableId * 0x400
 
-		sprite, palleteId := p.buildTile(xx, y, 0x0000)
-		renderTiles[y*32+x] = &Tile{
+		sprite, palleteId := p.buildTile(xx, tileY, 0x0000)
+		renderTiles[tileY*32+x] = &Tile{
 			bytes:     sprite,
 			paletteId: palleteId,
 			scrollX: p.PpuScrollX,
@@ -198,8 +199,8 @@ func (p *Ppu) buildTile(x, y, offset int)([8][8]byte, int){
 	spriteId := p.getSpriteId(x, y, offset)
 	blockId := p.getBlockId(x, y)
 	attr := p.getAttribute(x, y, offset)
-	paletteId := (attr >> uint(blockId) * 2) & 0x03
-	// fmt.Printf("(%d,%d) blockId:%d, spriteId:%d attr:%d palleteId:%d\n", x, y, blockId, spriteId, attr, paletteId)
+	paletteId := (attr >> (word(blockId) * 2)) & 0x03
+	fmt.Printf("(%d,%d) blockId:%d, spriteId:%d attr:%d palleteId:%d\n", x, y, blockId, spriteId, attr, paletteId)
 	return p.buildSprite(spriteId, 0x0000), paletteId
 }
 
@@ -208,7 +209,7 @@ func (p *Ppu) getBlockId(x, y int) int{
 }
 
 func (p *Ppu) getAttribute(x, y, offset int) int{
-	addr := int(x / 4) + (int(y / 4) * 8) + 0x03C0 + offset // + 0x2000
+	addr := int(x / 4) + (int(y / 4) * 8) + 0x23C0 + offset
 	return int(p.ram.load(word(addr)))
 }
 
@@ -240,7 +241,6 @@ func (p *Ppu) getBackgroundPalette() [16]color.RGBA{
 		if i % 4 == 0 {
 			// 0x3F04, 0x3F08, 0x3C0C are ignored by background.
 			// Instead of here, use these values in the sprite palette.
-			// currentPalette[i] = SystemPalette[5] // SystemPalette[p.ram.load(0x3F00)]
 			currentPalette[i] = SystemPalette[p.ram.load(0x3F00)]
 		}else{
 			currentPalette[i] = SystemPalette[b]
