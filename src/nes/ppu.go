@@ -21,6 +21,9 @@ type Ppu struct {
 	bus     *Bus
 	renderer *Renderer
 
+	// setting
+	isHorizontalMirror bool
+
 	// Sprite RAM
 	spriteId int
 	spriteCounter int
@@ -31,17 +34,19 @@ type Ppu struct {
 	x byte
 }
 
-func NewPpu(bus *Bus, chrRom []byte, r *Renderer) *Ppu{
+func NewPpu(bus *Bus, chrRom []byte, r *Renderer, isHorizontalMirror bool) *Ppu{
 	return &Ppu{
 		PpuCtrl:0x00,
 		PpuMask:0x00,
 		PpuStatus:0x00,
 		PpuAddr:0x00,
 		PpuData:0x00,
+		scrollFirst:true,
 		cycle:0,
 		ram:NewRamInit(0x4000, chrRom),
 		bus:bus,
 		renderer:r,
+		isHorizontalMirror:isHorizontalMirror,
 	}
 }
 
@@ -50,22 +55,22 @@ func (p *Ppu) isAbleNmiVblank() bool{
 	return p.PpuCtrl & 0x80 != 0
 }
 
+// $0x2000
 func (p *Ppu) writePpuCtrl(b byte){
 	p.PpuCtrl = b
 }
 
+// $0x2001
 func (p *Ppu) writePpuMask(b byte){
 	p.PpuMask = b
 }
 
 func (p *Ppu) writePpuScroll(b byte){
-
 	if p.scrollFirst {
 		p.PpuScrollX = b
 	} else{
 		p.PpuScrollY = b
 	}
-
 	p.scrollFirst = !p.scrollFirst
 }
 
@@ -74,7 +79,6 @@ func (p *Ppu) writeOamAddr(b byte){
 }
 
 func (p *Ppu) writeOamData(b byte){
-
 	if p.spriteCounter == 0{
 		p.y = b
 	}else if p.spriteCounter == 1{
@@ -102,7 +106,10 @@ func (p *Ppu) writePpuData(b byte){
 	p.PpuAddr++
 }
 
+// 0x2002
 func (p *Ppu) readPpuStatus() byte{
+	// reset scroll x and scroll y
+	p.scrollFirst = true
 	return p.PpuStatus
 }
 
@@ -129,7 +136,6 @@ func (p *Ppu) notOnVblank() {
 	p.renderer.spritePalette = p.getSpritePalette()
 	p.renderer.line = 0
 	p.PpuStatus &= 0x7F
-	
 	// not cool
 	// p.bus.cpu.unsetBit(Irq)
 }
@@ -146,7 +152,7 @@ func (p *Ppu) run(cycle uint64) bool{
 		// 240 - 262 => vblank期間。vramの書き換えができる.
 
 		if p.renderer.line <= 240 && p.renderer.line % 8 == 0 {
-			p.buildBackground((p.renderer.line - 1) / 8, p.renderer.tiles)
+			p.buildBackground(p.renderer.line - 1, p.renderer.tiles)
 		}
 
 		// Start Vblank
@@ -180,6 +186,10 @@ func (p *Ppu) getSpriteChrTable() word{
 	}
 }
 
+func (p *Ppu) getNameTableId() int{
+	return int(p.PpuCtrl & 0x03)
+}
+
 type Tile struct {
 	paletteId int
 	bytes     [8][8]byte
@@ -187,24 +197,46 @@ type Tile struct {
 	scrollY byte
 }
 
+
+func (p *Ppu) adjustScrollY() int{
+	adjusted := int(p.PpuScrollY) + (int(p.getNameTableId() / 2) * 240)
+
+	if p.PpuScrollY >= 240 {
+		// スクロールレジスタYは255まで値が格納できるが、
+		// 実際に描画するのは240までなので調整する必要がある
+		adjusted -= 255
+	}
+
+	return adjusted
+}
+
+func (p *Ppu) adjustScrollX() int{
+	return int(p.PpuScrollX) + (int(p.getNameTableId() % 2) * 256)
+}
+
+func (p *Ppu) calcNameTableOffset(x, y int) int{
+	tableIdOffset := 0
+	if int(y / 30) % 2 == 1{
+		tableIdOffset = 2
+	}
+
+	nameTableId := int(x / 32) % 2 + tableIdOffset
+	return nameTableId * 0x400
+}
+
 // build the background in one line.
-func (p *Ppu) buildBackground(tileY int, renderTiles []*Tile){
-	// 30 loops in outer methods.
+func (p *Ppu) buildBackground(line int, renderTiles []*Tile){
+	y := int((p.renderer.line - 1) / 8)
+	tileY := y + int(p.adjustScrollY() / 8)
+	rotateY := tileY % 30
 
 	for x:=0; x<32; x++{
-		// ややこしすぎるので関数化する
-		// readPalette, readAttributeなどにしたい
-		// お手本: tileX := x + int(int(p.PpuScrollX) + ((nameTableId % 2) * 256)) / 8
+		tileX := x + int(p.adjustScrollX() / 8)
+		rotatedX := tileX % 32
+		nameTableOffset := p.calcNameTableOffset(tileX, tileY)
 
-		// TODO : fix now!
-		tileX := x + int(p.PpuScrollX) / 8
-		xx := tileX % 32
-
-		// nameTableId := int(tileX / 32) % 2 // tableIdOffset
-		// nameTableOffset := nameTableId * 0x400
-
-		sprite, palleteId := p.buildTile(xx, tileY, 0x0000)
-		renderTiles[tileY*32+x] = &Tile{
+		sprite, palleteId := p.buildTile(rotatedX, rotateY, nameTableOffset)
+		renderTiles[y * 32 + x] = &Tile{
 			bytes:     sprite,
 			paletteId: palleteId,
 			scrollX: p.PpuScrollX,
@@ -213,7 +245,6 @@ func (p *Ppu) buildBackground(tileY int, renderTiles []*Tile){
 	}
 }
 
-// Tile is 8px * 8px
 func (p *Ppu) buildTile(x, y, offset int)([8][8]byte, int){
 	spriteId := p.getSpriteId(x, y, offset)
 	blockId := p.getBlockId(x, y)
@@ -228,14 +259,30 @@ func (p *Ppu) getBlockId(x, y int) int{
 }
 
 func (p *Ppu) getAttribute(x, y, offset int) int{
-	addr := int(x / 4) + (int(y / 4) * 8) + 0x23C0 + offset
-	return int(p.ram.load(word(addr)))
+	addr := word(int(x / 4) + (int(y / 4) * 8) + 0x23C0 + offset)
+	addr = p.downMirror(addr)
+	return int(p.ram.load(addr))
 }
 
 // Gets sprite ids from the name table.
 func (p *Ppu) getSpriteId(x, y, offset int) int{
 	addr := word(y * 32 + x + 0x2000 +  offset)
+	addr = p.downMirror(addr)
 	return int(p.ram.load(addr))
+}
+
+func (p *Ppu) downMirror(addr word) word{
+	if !p.isHorizontalMirror {
+		return addr
+	}
+
+	// Is nametable 1 or 3?
+	if addr >= 0x2400 && addr < 0x2800 || addr >= 0x2C00{
+		return addr - 0x0400
+	}
+
+	// name table 2
+	return addr
 }
 
 func (p *Ppu) buildSprite(spriteId int, offset word) [8][8]byte{
@@ -294,7 +341,6 @@ type Sprite struct {
 
 func (p *Ppu) getSprite(tileIndex int) *Sprite{
 	bytes := p.buildSprite(tileIndex, p.getSpriteChrTable())
-	// color-bar はこちらで表示可能 bytes := p.buildSprite(tileIndex, 0x1000)
 
 	return &Sprite{
 		y:p.y,

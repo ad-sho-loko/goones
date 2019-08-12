@@ -8,6 +8,7 @@ import (
 type Ines interface {
 	PrgRom() []byte
 	ChrRom() []byte
+	IsHorizontalMirror() bool
 }
 
 const HeaderSize = 0x0010
@@ -35,16 +36,16 @@ func NewCassette(path string) (Ines, error){
 	}
 
 	return &Mapper0{
+		isHorizontalMirror:bytes[5] == 1,
 		prgRom:prgRom,
 		chrRom:bytes[chrRomStart:chrROMEnd],
 	}, nil
 }
 
-/// Implement of Mapper0
-
 type Mapper0 struct{
 	prgRom []byte
 	chrRom []byte
+	isHorizontalMirror bool
 }
 
 func (m *Mapper0) PrgRom() []byte{
@@ -53,4 +54,8 @@ func (m *Mapper0) PrgRom() []byte{
 
 func (m *Mapper0) ChrRom() []byte{
 	return m.chrRom
+}
+
+func (m *Mapper0) IsHorizontalMirror() bool{
+	return m.isHorizontalMirror
 }

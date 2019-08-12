@@ -66,14 +66,13 @@ func (r *Renderer) renderBackground(background []*Tile){
 
 func (r *Renderer) renderTile(tile *Tile, tileX, tileY int){
 	offsetX := tile.scrollX % 8
-	// offsetY := tile.scrollY % 8
+	offsetY := tile.scrollY % 8
 	for i := 0; i < 8; i++ {
 		for j:= 0; j < 8; j++ {
 			paletteIdx := int(tile.paletteId) * 4  + int(tile.bytes[i][j])
 			rgba := r.backgroundPalette[paletteIdx]
 			x := tileX + j - int(offsetX)
-			y := tileY + i // - int(offsetY)
-
+			y := tileY + i - int(offsetY)
 			if x >= 0 && x <= 0xFF && y >= 0 && y < 240 {
 				r.img.SetRGBA(x, y, rgba)
 			}

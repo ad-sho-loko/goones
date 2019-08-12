@@ -18,7 +18,7 @@ func NewNes(cassette Ines) *Nes {
 	controller := NewController()
 	bus := NewBus(wram, cassette.PrgRom())
 	cpu := NewCpu(bus)
-	ppu := NewPpu(bus, cassette.ChrRom(), renderer)
+	ppu := NewPpu(bus, cassette.ChrRom(), renderer, cassette.IsHorizontalMirror())
 	bus.cpu = cpu
 	bus.ppu = ppu
 	bus.controller = controller
