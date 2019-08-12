@@ -161,6 +161,22 @@ func (p *Ppu) run(cycle uint64) bool{
 	return false
 }
 
+func (p *Ppu) getBgChrTable() word{
+	if p.PpuCtrl & 0x10 != 0{
+		return 0x1000
+	}else{
+		return 0x0000
+	}
+}
+
+func (p *Ppu) getSpriteChrTable() word{
+	if p.PpuCtrl & 0x08 != 0{
+		return 0x1000
+	}else{
+		return 0x0000
+	}
+}
+
 type Tile struct {
 	paletteId int
 	bytes     [8][8]byte
@@ -201,7 +217,7 @@ func (p *Ppu) buildTile(x, y, offset int)([8][8]byte, int){
 	attr := p.getAttribute(x, y, offset)
 	paletteId := (attr >> (word(blockId) * 2)) & 0x03
 	fmt.Printf("(%d,%d) blockId:%d, spriteId:%d attr:%d palleteId:%d\n", x, y, blockId, spriteId, attr, paletteId)
-	return p.buildSprite(spriteId, 0x0000), paletteId
+	return p.buildSprite(spriteId, p.getBgChrTable()), paletteId
 }
 
 func (p *Ppu) getBlockId(x, y int) int{
@@ -274,7 +290,8 @@ type Sprite struct {
 }
 
 func (p *Ppu) getSprite(tileIndex int) *Sprite{
-	bytes := p.buildSprite(tileIndex, 0x1000)
+	bytes := p.buildSprite(tileIndex, p.getSpriteChrTable())
+	// color-bar はこちらで表示可能 bytes := p.buildSprite(tileIndex, 0x1000)
 
 	return &Sprite{
 		y:p.y,
