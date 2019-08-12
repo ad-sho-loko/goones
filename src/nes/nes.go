@@ -40,6 +40,7 @@ func (n *Nes) Init() error {
 	}
 
 	n.cpu.PC = n.bus.Loadw(0xFFFC)
+	// n.cpu.PC = 0xC000
 	n.cpu.S = 0xFD
 	n.cpu.P = 0x24
 

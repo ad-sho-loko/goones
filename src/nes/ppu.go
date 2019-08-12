@@ -131,7 +131,7 @@ func (p *Ppu) notOnVblank() {
 	p.PpuStatus &= 0x7F
 	
 	// not cool
-	p.bus.cpu.unsetBit(Irq)
+	// p.bus.cpu.unsetBit(Irq)
 }
 
 func (p *Ppu) run(cycle uint64) bool{

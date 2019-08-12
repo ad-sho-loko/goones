@@ -233,21 +233,22 @@ func (c *Cpu) asl(isAccumulator bool, addr word){
 func (c *Cpu) bit(addr word){
 	// 特殊なレジスタ操作が必要なのでロジックを個別化する
 	v := c.bus.Load(addr)
-	if v >> 6 & 0x01 != 0{
+
+	if (v >> 6) & 0x01 != 0{
 		c.setBit(Overflow)
 	}else{
 		c.unsetBit(Overflow)
 	}
 
-	if v & c.A == 0{
+	if (v & c.A) == 0x00{
 		c.setBit(Zero)
 	}else{
 		c.unsetBit(Zero)
 	}
 
-	if v & 0x80 != 0{
+	if (v & 0x80) != 0{
 		c.setBit(Negative)
-	} else{
+	}else{
 		c.unsetBit(Negative)
 	}
 
@@ -439,9 +440,9 @@ func (c *Cpu) pop() byte{
 }
 
 func (c *Cpu) popWord() word {
-	l := c.pop()
-	h := c.pop()
-	return word(h) << 8 | word(l)
+	l := word(c.pop())
+	h := word(c.pop())
+	return h << 8 | l
 }
 
 func (c *Cpu) pha(){
