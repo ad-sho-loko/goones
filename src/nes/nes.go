@@ -56,7 +56,7 @@ func (n *Nes) Run(){
 func (n *Nes) step() bool {
 
 	// check interrupt
-	if n.cpu.intrrupt != nil && !n.cpu.isIrqForbitten(){
+	if n.cpu.intrrupt != nil {
 		// fmt.Println("========= Interrupt! =========")
 		n.cpu.intrrupt()
 	}

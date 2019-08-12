@@ -4,16 +4,6 @@ type Controller struct {
 	reset byte
 	counter int
 	buttons [8]bool
-	/*
-	A byte
-	B byte
-	Select byte
-	Start byte
-	Up byte
-	Down byte
-	Left byte
-	Right byte
-	*/
 }
 
 type Key uint

@@ -35,10 +35,10 @@ func (d *Director) setKeyCallback(){
 		case glfw.KeyB:
 			b[1] = isPush
 			fallthrough
-		case glfw.KeyEnter :
+		case glfw.KeyRightShift :
 			b[2] = isPush
 			fallthrough
-		case glfw.KeyRightShift :
+		case glfw.KeyEnter :
 			b[3] = isPush
 			fallthrough
 		case glfw.KeyUp :

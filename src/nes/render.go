@@ -52,7 +52,7 @@ func (r *Renderer) renderTile(tile *Tile, tileX, tileY int){
 	// offsetY := tile.scrollY % 8
 	for i := 0; i < 8; i++ {
 		for j:= 0; j < 8; j++ {
-			paletteIdx := tile.paletteId * 4 + int(tile.bytes[i][j])
+			paletteIdx := int(tile.paletteId) * 4  + int(tile.bytes[i][j])
 			rgba := r.backgroundPalette[paletteIdx]
 			x := tileX + j - int(offsetX)
 			y := tileY + i // - int(offsetY)

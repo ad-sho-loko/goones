@@ -438,7 +438,7 @@ func (c *Cpu) sbc(addr word){
 }
 
 func (c *Cpu) push(b byte){
-	c.bus.Store(0x100 + word(c.S), b)
+	c.bus.Store(0x100 | word(c.S), b)
 	c.S--
 }
 
@@ -451,7 +451,7 @@ func (c *Cpu) pushWord(w word){
 
 func (c *Cpu) pop() byte{
 	c.S++
-	return c.bus.Load(0x100 + word(c.S))
+	return c.bus.Load(0x100 | word(c.S))
 }
 
 func (c *Cpu) popWord() word {
@@ -465,6 +465,7 @@ func (c *Cpu) pha(){
 }
 
 func (c *Cpu) php(){
+	// sets 0x10 always
 	c.push(c.P | 0x10)
 }
 
@@ -495,55 +496,55 @@ func (c *Cpu) rti() {
 	c.PC = c.popWord()
 }
 
-func (c *Cpu) branch(offset byte){
-	c.PC = word(int(c.PC) + int(int8(offset)))
+func (c *Cpu) branch(w word){
+	c.PC = w
 }
 
 func (c *Cpu) bcs(w word){
 	if c.isCarry(){
-		c.branch(c.bus.Load(w))
+		c.branch(w)
 	}
 }
 
 func (c *Cpu) bcc(w word){
 	if !c.isCarry(){
-		c.branch(c.bus.Load(w))
+		c.branch(w)
 	}
 }
 
 func (c *Cpu) beq(w word){
 	if c.isZero(){
-		c.branch(c.bus.Load(w))
+		c.branch(w)
 	}
 }
 
 func (c *Cpu) bne(w word){
 	if !c.isZero(){
-		c.branch(c.bus.Load(w))
+		c.branch(w)
 	}
 }
 
 func (c *Cpu) bmi(w word){
 	if c.isNegative(){
-		c.branch(c.bus.Load(w))
+		c.branch(w)
 	}
 }
 
 func (c *Cpu) bpl(w word){
 	if !c.isNegative(){
-		c.branch(c.bus.Load(w))
+		c.branch(w)
 	}
 }
 
 func (c *Cpu) bvc(w word){
 	if !c.isOverflow(){
-		c.branch(c.bus.Load(w))
+		c.branch(w)
 	}
 }
 
 func (c *Cpu) bvs(w word){
 	if c.isOverflow(){
-		c.branch(c.bus.Load(w))
+		c.branch(w)
 	}
 }
 
@@ -626,10 +627,11 @@ func (c *Cpu) anc(){
 func (c *Cpu) brk(){
 	c.pushWord(c.PC)
 	c.php()
+	c.sei()
 	addr := c.bus.Loadw(0xFFFE)
 	c.jmp(addr)
-	c.setBit(Irq)
-	c.setBit(Break)
+	// c.setBit(Irq)
+	// c.setBit(Break)
 }
 
 func (c *Cpu) nop(){
@@ -642,7 +644,7 @@ func (c *Cpu) nmi(){
 	addr := c.bus.Loadw(0xFFFA)
 	c.jmp(addr)
 	c.setBit(Irq)
-	c.unsetBit(Break)
+	// c.unsetBit(Break)
 	c.cycle+=7
 }
 
@@ -652,7 +654,7 @@ func (c *Cpu) reset(){
 	addr := c.bus.Loadw(0xFFFC)
 	c.jmp(addr)
 	c.setBit(Irq)
-	c.unsetBit(Break)
+	// c.unsetBit(Break)
 	c.cycle += 7
 }
 
@@ -670,11 +672,15 @@ func (c *Cpu) InterruptNmi(){
 }
 
 func (c *Cpu) interruptReset(){
-	c.intrrupt = c.reset
+	if !c.isIrqForbitten(){
+		c.intrrupt = c.reset
+	}
 }
 
 func (c *Cpu) interruptIrq(){
-	c.intrrupt = c.irq
+	if !c.isIrqForbitten(){
+		c.intrrupt = c.irq
+	}
 }
 
 func (c *Cpu) decode(b byte) Instruction{
@@ -707,7 +713,12 @@ func (c *Cpu) solveAddrMode(mode AddrMode) word {
 	case Immediate:
 		return c.PC + 1
 	case Relative:
-		return c.PC + 1
+		offset := word(c.bus.Load(c.PC + 1))
+		if offset < 0x80 {
+			return c.PC + 2 + offset
+		} else {
+			return c.PC + 2 + offset - 0x100
+		}
 	case Zeropage:
 		return word(c.bus.Load(c.PC + 1))
 	case ZeropageX:
@@ -721,13 +732,10 @@ func (c *Cpu) solveAddrMode(mode AddrMode) word {
 	case AbsoluteY:
 		return c.bus.Loadw(c.PC + 1) + word(c.Y)
 	case Indirect:
-		// return c.bus.Loadw(c.bus.Loadw(c.PC + 1))
 		return c.bus.BugLoadw(c.bus.Loadw(c.PC + 1))
 	case IndirectX:
-		// return c.bus.Loadw(word(c.bus.Load(c.PC + 1) + c.X))
 		return c.bus.BugLoadw(word(c.bus.Load(c.PC + 1) + c.X))
 	case IndirectY:
-		// return c.bus.Loadw(word(c.bus.Load(c.PC + 1))) + word(c.Y)
 		return c.bus.BugLoadw(word(c.bus.Load(c.PC + 1))) + word(c.Y)
 	default:
 		abort("panic: unknown addrMode `%s` was called when solving", mode)

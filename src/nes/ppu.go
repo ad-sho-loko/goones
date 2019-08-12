@@ -254,6 +254,7 @@ func (p *Ppu) getSpritePalette() [16]color.RGBA{
 		if i % 4 == 0 {
 			// 0x3F10, 0x3F14, 0x3F18, 0x3F1C are mirror of 0x3F00, 0x3F04, 0x3F08, 0x3CFC
 			currentPalette[i] = SystemPalette[p.ram.load(word(0x3F00+i))]
+
 		}else{
 			currentPalette[i] = SystemPalette[b]
 		}
@@ -272,8 +273,6 @@ type Sprite struct {
 }
 
 func (p *Ppu) getSprite(tileIndex int) *Sprite{
-	// tileIndexはどのタイル(.spr)を使うかを決めるもの
-	// spriteIdはレンダリングのために連番をつけただけ
 	bytes := p.buildSprite(tileIndex, 0x1000)
 
 	return &Sprite{
