@@ -1,7 +1,6 @@
 package nes
 
 import (
-	"fmt"
 	"image/color"
 )
 
@@ -142,6 +141,10 @@ func (p *Ppu) run(cycle uint64) bool{
 		p.cycle -= 341
 		p.renderer.line++
 
+		// 262本のスキャンライン
+		// 1 - 240 => bg/spritesの描画
+		// 240 - 262 => vblank期間。vramの書き換えができる.
+
 		if p.renderer.line <= 240 && p.renderer.line % 8 == 0 {
 			p.buildBackground((p.renderer.line - 1) / 8, p.renderer.tiles)
 		}
@@ -216,7 +219,7 @@ func (p *Ppu) buildTile(x, y, offset int)([8][8]byte, int){
 	blockId := p.getBlockId(x, y)
 	attr := p.getAttribute(x, y, offset)
 	paletteId := (attr >> (word(blockId) * 2)) & 0x03
-	fmt.Printf("(%d,%d) blockId:%d, spriteId:%d attr:%d palleteId:%d\n", x, y, blockId, spriteId, attr, paletteId)
+	// fmt.Printf("(%d,%d) blockId:%d, spriteId:%d attr:%d palleteId:%d\n", x, y, blockId, spriteId, attr, paletteId)
 	return p.buildSprite(spriteId, p.getBgChrTable()), paletteId
 }
 

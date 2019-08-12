@@ -17,6 +17,7 @@ type Renderer struct {
 	spritePalette     [16]color.RGBA
 	img               *image.RGBA
 	sprites           [64]*Sprite
+	ppuMask           byte  // ppu 0x2002
 }
 
 func NewRenderer() *Renderer{
@@ -34,7 +35,23 @@ func (r *Renderer) Buffer() *image.RGBA{
 	return r.img
 }
 
-func (r *Renderer) render(){
+func (r *Renderer) isBackground8() bool{
+	return r.ppuMask & 0x02 != 1
+}
+
+func (r *Renderer) isSprite8() bool{
+	return r.ppuMask & 0x04 != 1
+}
+
+func (r *Renderer) isEnableBg() bool{
+	return r.ppuMask & 0x08 != 1
+}
+
+func (r *Renderer) isEnableSprite() bool{
+	return r.ppuMask & 0x10 != 1
+}
+
+func (r *Renderer) render(ppuMask byte){
 	r.renderBackground(r.tiles)
 	r.renderSprites(r.sprites)
 }
@@ -108,11 +125,9 @@ func (r *Renderer) renderSprite(sprite *Sprite){
 	// fix : 右端のSpriteが更新されないバグあり
 	for i := 0; i < 8; i++ {
 		for j:= 0; j < 8; j++ {
-			/*
 			if sprite.bytes[i][j] == 0 {
 				continue
 			}
-			*/
 
 			paletteIdx := int(sprite.paletteId) * 4 + int(sprite.bytes[i][j])
 			rgba := r.spritePalette[paletteIdx]
