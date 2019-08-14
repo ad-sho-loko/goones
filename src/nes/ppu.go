@@ -55,6 +55,14 @@ func (p *Ppu) isAbleNmiVblank() bool{
 	return p.PpuCtrl & 0x80 != 0
 }
 
+func (p *Ppu) getIncrementCount() word{
+	if p.PpuCtrl & 0x40 == 1{
+		return 32
+	}else{
+		return 1
+	}
+}
+
 // $0x2000
 func (p *Ppu) writePpuCtrl(b byte){
 	p.PpuCtrl = b
@@ -119,7 +127,7 @@ func (p *Ppu) readOamData() byte{
 
 func (p *Ppu) readPpuData() byte{
 	b := p.ram.load(p.PpuAddr)
-	p.PpuAddr++
+	p.PpuAddr += p.getIncrementCount()
 	return b
 }
 
@@ -140,6 +148,18 @@ func (p *Ppu) notOnVblank() {
 	// p.bus.cpu.unsetBit(Irq)
 }
 
+func (p *Ppu) isBackgroundEnable() bool {
+	return p.PpuMask & 0x08 != 0
+}
+
+func (p *Ppu) isSpriteEnable() bool {
+	return p.PpuMask & 0x10 != 0
+}
+
+func (p *Ppu) hasHitSprite() bool{
+	return p.renderer.line == int(p.y) && p.isBackgroundEnable() && p.isSpriteEnable()
+}
+
 func (p *Ppu) run(cycle uint64) bool{
 	p.cycle+= cycle * 3
 
@@ -147,10 +167,14 @@ func (p *Ppu) run(cycle uint64) bool{
 		p.cycle -= 341
 		p.renderer.line++
 
+		// 0爆弾
+		if p.hasHitSprite(){
+			p.PpuStatus |= 0x40
+		}
+
 		// 262本のスキャンライン
 		// 1 - 240 => bg/spritesの描画
 		// 240 - 262 => vblank期間。vramの書き換えができる.
-
 		if p.renderer.line <= 240 && p.renderer.line % 8 == 0 {
 			p.buildBackground(p.renderer.line - 1, p.renderer.tiles)
 		}
@@ -163,6 +187,7 @@ func (p *Ppu) run(cycle uint64) bool{
 		// End Vblank
 		if p.renderer.line == 262 {
 			p.notOnVblank()
+			p.PpuStatus &= 0xFF - 0x40
 			return true
 		}
 	}
@@ -170,7 +195,7 @@ func (p *Ppu) run(cycle uint64) bool{
 	return false
 }
 
-func (p *Ppu) getBgChrTable() word{
+func (p *Ppu) fetchBgChrTable() word{
 	if p.PpuCtrl & 0x10 != 0{
 		return 0x1000
 	}else{
@@ -178,7 +203,7 @@ func (p *Ppu) getBgChrTable() word{
 	}
 }
 
-func (p *Ppu) getSpriteChrTable() word{
+func (p *Ppu) fetchSpriteChrTable() word{
 	if p.PpuCtrl & 0x08 != 0{
 		return 0x1000
 	}else{
@@ -186,7 +211,7 @@ func (p *Ppu) getSpriteChrTable() word{
 	}
 }
 
-func (p *Ppu) getNameTableId() int{
+func (p *Ppu) fetchNameTableId() int{
 	return int(p.PpuCtrl & 0x03)
 }
 
@@ -199,7 +224,7 @@ type Tile struct {
 
 
 func (p *Ppu) adjustScrollY() int{
-	adjusted := int(p.PpuScrollY) + (int(p.getNameTableId() / 2) * 240)
+	adjusted := int(p.PpuScrollY) + (int(p.fetchNameTableId() / 2) * 240)
 
 	if p.PpuScrollY >= 240 {
 		// スクロールレジスタYは255まで値が格納できるが、
@@ -211,10 +236,10 @@ func (p *Ppu) adjustScrollY() int{
 }
 
 func (p *Ppu) adjustScrollX() int{
-	return int(p.PpuScrollX) + (int(p.getNameTableId() % 2) * 256)
+	return int(p.PpuScrollX) + (int(p.fetchNameTableId() % 2) * 256)
 }
 
-func (p *Ppu) calcNameTableOffset(x, y int) int{
+func (p *Ppu) evaluateNameTableOffset(x, y int) int{
 	tableIdOffset := 0
 	if int(y / 30) % 2 == 1{
 		tableIdOffset = 2
@@ -226,14 +251,14 @@ func (p *Ppu) calcNameTableOffset(x, y int) int{
 
 // build the background in one line.
 func (p *Ppu) buildBackground(line int, renderTiles []*Tile){
-	y := int((p.renderer.line - 1) / 8)
+	y := int(line / 8)
 	tileY := y + int(p.adjustScrollY() / 8)
 	rotateY := tileY % 30
 
 	for x:=0; x<32; x++{
 		tileX := x + int(p.adjustScrollX() / 8)
 		rotatedX := tileX % 32
-		nameTableOffset := p.calcNameTableOffset(tileX, tileY)
+		nameTableOffset := p.evaluateNameTableOffset(tileX, tileY)
 
 		sprite, palleteId := p.buildTile(rotatedX, rotateY, nameTableOffset)
 		renderTiles[y * 32 + x] = &Tile{
@@ -251,7 +276,7 @@ func (p *Ppu) buildTile(x, y, offset int)([8][8]byte, int){
 	attr := p.getAttribute(x, y, offset)
 	paletteId := (attr >> (word(blockId) * 2)) & 0x03
 	// fmt.Printf("(%d,%d) blockId:%d, spriteId:%d attr:%d palleteId:%d\n", x, y, blockId, spriteId, attr, paletteId)
-	return p.buildSprite(spriteId, p.getBgChrTable()), paletteId
+	return p.buildSprite(spriteId, p.fetchBgChrTable()), paletteId
 }
 
 func (p *Ppu) getBlockId(x, y int) int{
@@ -340,7 +365,7 @@ type Sprite struct {
 }
 
 func (p *Ppu) getSprite(tileIndex int) *Sprite{
-	bytes := p.buildSprite(tileIndex, p.getSpriteChrTable())
+	bytes := p.buildSprite(tileIndex, p.fetchSpriteChrTable())
 
 	return &Sprite{
 		y:p.y,

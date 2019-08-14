@@ -80,7 +80,7 @@ func (n *Nes) step() bool {
 	n.cpu.cycle += cycle
 
 	if n.ppu.run(cycle * 3){
-		n.ppu.renderer.render(n.ppu.PpuMask)
+		n.ppu.renderer.render(n.ppu.PpuMask, n.ppu.isBackgroundEnable(), n.ppu.isSpriteEnable())
 		return true
 	}
 

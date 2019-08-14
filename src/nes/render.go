@@ -51,9 +51,16 @@ func (r *Renderer) isEnableSprite() bool{
 	return r.ppuMask & 0x10 != 1
 }
 
-func (r *Renderer) render(ppuMask byte){
-	r.renderBackground(r.tiles)
-	r.renderSprites(r.sprites)
+func (r *Renderer) render(ppuMask byte, isBgEnabled bool, isSpriteEnabled bool){
+
+	if isBgEnabled{
+		r.renderBackground(r.tiles)
+	}
+
+	if isSpriteEnabled{
+		r.renderSprites(r.sprites)
+	}
+
 }
 
 func (r *Renderer) renderBackground(background []*Tile){
@@ -115,6 +122,12 @@ func (r *Renderer) renderSprite(sprite *Sprite){
 		return
 	}
 
+	// 上下8ラインは描画不要
+	if sprite.y < 8 || sprite.y > 232{
+		return
+	}
+
+
 	if sprite.isHorizontalReverse{
 		sprite.bytes = r.reverse(sprite.bytes, true)
 	}else if sprite.isVerticalReverse{
@@ -132,6 +145,7 @@ func (r *Renderer) renderSprite(sprite *Sprite){
 			rgba := r.spritePalette[paletteIdx]
 			x := int(sprite.x) + j
 			y := int(sprite.y) + i
+
 
 			r.img.SetRGBA(x, y, rgba)
 		}
