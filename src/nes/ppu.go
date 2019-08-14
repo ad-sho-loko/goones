@@ -109,9 +109,10 @@ func (p *Ppu) writePpuAddr(b byte){
 }
 
 func (p *Ppu) writePpuData(b byte){
-	// fmt.Printf("[ppu] 0x%x => 0x%x(%d) \n", p.PpuAddr, b, b)
-	p.ram.store(p.PpuAddr, b)
-	p.PpuAddr++
+	addr := p.calcVramAddr(p.PpuAddr)
+	// fmt.Printf("0x%x => 0x%x\n", p.PpuAddr, addr)
+	p.ram.store(addr, b)
+	p.PpuAddr += p.getIncrementCount()
 }
 
 // 0x2002
@@ -126,9 +127,20 @@ func (p *Ppu) readOamData() byte{
 }
 
 func (p *Ppu) readPpuData() byte{
-	b := p.ram.load(p.PpuAddr)
+	addr := p.calcVramAddr(p.PpuAddr)
 	p.PpuAddr += p.getIncrementCount()
-	return b
+	return p.ram.load(addr)
+}
+
+func (p *Ppu) calcVramAddr(addr word) word{
+	if p.PpuAddr >= 0x3000 && p.PpuAddr <= 0x3EFF{
+		// 0x3000 - 0x3EFF is mirror of 0x2000 - 0x2EFF
+		return p.PpuAddr - 0x1000
+	}else if p.PpuAddr >= 0x3F20 && p.PpuAddr <= 0x3FFF{
+		return p.PpuAddr - 0x0010
+	}else{
+		return addr
+	}
 }
 
 func (p *Ppu) onVblank(){
@@ -346,7 +358,6 @@ func (p *Ppu) getSpritePalette() [16]color.RGBA{
 		if i % 4 == 0 {
 			// 0x3F10, 0x3F14, 0x3F18, 0x3F1C are mirror of 0x3F00, 0x3F04, 0x3F08, 0x3CFC
 			currentPalette[i] = SystemPalette[p.ram.load(word(0x3F00+i))]
-
 		}else{
 			currentPalette[i] = SystemPalette[b]
 		}

@@ -127,7 +127,6 @@ func (r *Renderer) renderSprite(sprite *Sprite){
 		return
 	}
 
-
 	if sprite.isHorizontalReverse{
 		sprite.bytes = r.reverse(sprite.bytes, true)
 	}else if sprite.isVerticalReverse{
@@ -145,8 +144,6 @@ func (r *Renderer) renderSprite(sprite *Sprite){
 			rgba := r.spritePalette[paletteIdx]
 			x := int(sprite.x) + j
 			y := int(sprite.y) + i
-
-
 			r.img.SetRGBA(x, y, rgba)
 		}
 	}
