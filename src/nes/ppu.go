@@ -28,6 +28,8 @@ type Ppu struct {
 	spriteId int
 	spriteCounter int
 	spriteBuffer [64]*Sprite
+	spriteRam [64][4]byte
+
 	y byte
 	tileIndex byte
 	attr byte
@@ -86,38 +88,17 @@ func (p *Ppu) writeOamAddr(b byte){
 	p.OamAddr = b
 }
 
-func (p *Ppu) writeOamData0(b byte){
-	if p.spriteCounter == 0{
-		p.y = b
-	}else if p.spriteCounter == 1{
-		p.tileIndex = b
-	}else if p.spriteCounter == 2{
-		p.attr = b
-	}else if p.spriteCounter == 3 {
-		p.x = b
-		p.spriteBuffer[p.OamAddr%64] = p.getSprite(int(p.tileIndex))
-	}
-	p.spriteCounter++
-	p.spriteCounter %= 4
-}
-
 func (p *Ppu) writeOamData(b byte){
-	// dmaで送るパターンと2003->2004で送るパターンがある、
-	// で後者はアドレスも指定できるが、前者は一気に64個読み込んじゃう
-	if p.spriteCounter == 0{
-		p.y = b
-	}else if p.spriteCounter == 1{
-		p.tileIndex = b
-	}else if p.spriteCounter == 2{
-		p.attr = b
-	}else if p.spriteCounter == 3 {
-		p.x = b
-		p.spriteBuffer[p.spriteId] = p.getSprite(int(p.tileIndex))
-		p.spriteId++
-		p.spriteId%=64
+	if p.OamAddr % 4 == 0{
+		p.spriteRam[p.OamAddr / 4][0] = b
+	} else if p.OamAddr %4 == 1{
+		p.spriteRam[p.OamAddr / 4][1] = b
+	} else if p.OamAddr %4 == 2 {
+		p.spriteRam[p.OamAddr / 4][2] = b
+	} else{
+		p.spriteRam[p.OamAddr / 4][3] = b
 	}
-	p.spriteCounter++
-	p.spriteCounter%= 4
+	p.OamAddr++
 }
 
 func (p *Ppu) writePpuAddr(b byte){
@@ -159,14 +140,14 @@ func (p *Ppu) calcVramAddr(addr word) word{
 	}
 }
 
-func (p *Ppu) onVblank(){
+func (p *Ppu) enterVblank(){
 	p.PpuStatus |= 0x80
 	if p.isAbleNmiVblank(){
 		p.bus.cpu.InterruptNmi()
 	}
 }
 
-func (p *Ppu) notOnVblank() {
+func (p *Ppu) leaveVblank() {
 	p.renderer.sprites = p.spriteBuffer
 	p.renderer.backgroundPalette = p.getBackgroundPalette()
 	p.renderer.spritePalette = p.getSpritePalette()
@@ -209,12 +190,17 @@ func (p *Ppu) run(cycle uint64) bool{
 
 		// Start Vblank
 		if p.renderer.line == 241{
-			p.onVblank()
+			p.enterVblank()
 		}
 
 		// End Vblank
 		if p.renderer.line == 262 {
-			p.notOnVblank()
+			for i, r := range p.spriteRam{
+				p.spriteBuffer[i] = p.getSprite(r[0], r[1], r[2], r[3])
+			}
+
+
+			p.leaveVblank()
 			p.PpuStatus &= 0xFF - 0x40
 			return true
 		}
@@ -391,16 +377,16 @@ type Sprite struct {
 	paletteId byte
 }
 
-func (p *Ppu) getSprite(tileIndex int) *Sprite{
-	bytes := p.buildSprite(tileIndex, p.fetchSpriteChrTable())
+func (p *Ppu) getSprite(y, tileIndex, attr, x byte) *Sprite{
 
+	bytes := p.buildSprite(int(tileIndex), p.fetchSpriteChrTable())
 	return &Sprite{
-		y:p.y,
-		x:p.x,
+		y:y,
+		x:x,
 		bytes:bytes,
-		isVerticalReverse:p.attr & 0x80 != 0,
-		isHorizontalReverse:p.attr & 0x40 != 0,
-		isUseBg:p.attr & 0x20 != 0,
-		paletteId:p.attr & 0x03,
+		isVerticalReverse:attr & 0x80 != 0,
+		isHorizontalReverse:attr & 0x40 != 0,
+		isUseBg:attr & 0x20 != 0,
+		paletteId:attr & 0x03,
 	}
 }

@@ -72,7 +72,7 @@ func (b *Bus) Store(addr word, v byte){
 	} else if addr == 0x2003 {
 		b.ppu.writeOamAddr(v)
 	} else if addr == 0x2004 {
-		b.ppu.writeOamData0(v)
+		b.ppu.writeOamData(v)
 	} else if addr == 0x2005 {
 		b.ppu.writePpuScroll(v)
 	} else if addr == 0x2006 {
@@ -98,6 +98,7 @@ func (b *Bus) Store(addr word, v byte){
 func (b *Bus) dmaTransfer(hund byte) {
 	addr := word(hund) << 8
 	var i word
+
 	for i=0; i < 64; i++{
 		b.ppu.writeOamData(b.Load(addr+i*4))
 		b.ppu.writeOamData(b.Load(addr+i*4+1))

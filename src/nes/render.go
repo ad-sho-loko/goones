@@ -136,6 +136,7 @@ func (r *Renderer) renderSprite(sprite *Sprite){
 	// fix : 右端のSpriteが更新されないバグあり
 	for i := 0; i < 8; i++ {
 		for j:= 0; j < 8; j++ {
+
 			if sprite.bytes[i][j] == 0 {
 				continue
 			}
