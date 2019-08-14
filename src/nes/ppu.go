@@ -25,15 +25,8 @@ type Ppu struct {
 	isHorizontalMirror bool
 
 	// Sprite RAM
-	spriteId int
-	spriteCounter int
 	spriteBuffer [64]*Sprite
-	spriteRam [64][4]byte
-
-	y byte
-	tileIndex byte
-	attr byte
-	x byte
+	spriteRam [64][4]byte // 0=y, 1=idx, 2=attr, 3=x
 }
 
 func NewPpu(bus *Bus, chrRom []byte, r *Renderer, isHorizontalMirror bool) *Ppu{
@@ -166,7 +159,8 @@ func (p *Ppu) isSpriteEnable() bool {
 }
 
 func (p *Ppu) hasHitSprite() bool{
-	return p.renderer.line == int(p.y) && p.isBackgroundEnable() && p.isSpriteEnable()
+	zeroSpriteY := p.spriteRam[0][0]
+	return p.renderer.line == int(zeroSpriteY) && p.isBackgroundEnable() && p.isSpriteEnable()
 }
 
 func (p *Ppu) run(cycle uint64) bool{
