@@ -86,7 +86,24 @@ func (p *Ppu) writeOamAddr(b byte){
 	p.OamAddr = b
 }
 
+func (p *Ppu) writeOamData0(b byte){
+	if p.spriteCounter == 0{
+		p.y = b
+	}else if p.spriteCounter == 1{
+		p.tileIndex = b
+	}else if p.spriteCounter == 2{
+		p.attr = b
+	}else if p.spriteCounter == 3 {
+		p.x = b
+		p.spriteBuffer[p.OamAddr%64] = p.getSprite(int(p.tileIndex))
+	}
+	p.spriteCounter++
+	p.spriteCounter %= 4
+}
+
 func (p *Ppu) writeOamData(b byte){
+	// dmaで送るパターンと2003->2004で送るパターンがある、
+	// で後者はアドレスも指定できるが、前者は一気に64個読み込んじゃう
 	if p.spriteCounter == 0{
 		p.y = b
 	}else if p.spriteCounter == 1{
@@ -99,9 +116,8 @@ func (p *Ppu) writeOamData(b byte){
 		p.spriteId++
 		p.spriteId%=64
 	}
-
 	p.spriteCounter++
-	p.spriteCounter %= 4
+	p.spriteCounter%= 4
 }
 
 func (p *Ppu) writePpuAddr(b byte){
