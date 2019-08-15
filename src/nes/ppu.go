@@ -1,6 +1,8 @@
 package nes
 
-import "image/color"
+import (
+	"image/color"
+)
 
 type Ppu struct {
 	// Core
@@ -51,7 +53,7 @@ func (p *Ppu) isAbleNmiVblank() bool{
 }
 
 func (p *Ppu) getIncrementCount() word{
-	if p.PpuCtrl & 0x40 == 1{
+	if p.PpuCtrl & 0x04 != 0{
 		return 32
 	}else{
 		return 1
@@ -163,15 +165,17 @@ func (p *Ppu) isSpriteEnable() bool {
 
 func (p *Ppu) hasHitSprite() bool{
 	zeroSpriteY := p.spriteRam[0][0]
-	return p.renderer.line == int(zeroSpriteY) && p.isBackgroundEnable() && p.isSpriteEnable()
+	return p.renderer.line == int(zeroSpriteY)  && p.isBackgroundEnable() && p.isSpriteEnable()
 }
 
 func (p *Ppu) hitSprite(){
 	p.PpuStatus |= 0x40
+	// fmt.Println("===> HIT SPRITE!")
 }
 
 func (p *Ppu) endHitSprite(){
 	p.PpuStatus &= 0xBF
+	// fmt.Println("<=== END SPRITE!")
 }
 
 func (p *Ppu) run(cycle uint64) bool{
@@ -323,7 +327,6 @@ func (p *Ppu) buildSprite(spriteId int, offset word) [8][8]byte{
 			}
 		}
 	}
-
 	return sprite
 }
 
