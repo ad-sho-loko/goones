@@ -1,29 +1,23 @@
 package nes
 
-import (
-	"fmt"
-	"image/color"
-)
+import "image/color"
 
 type Ppu struct {
 	// Core
-	PpuCtrl byte   // 0x2000
-	PpuMask byte   // 0x2001
-	PpuStatus byte // 0x2002
-	OamAddr byte   // 0x2003
-	OamData byte   // 0x2004
+	PpuCtrl     byte   // 0x2000
+	PpuMask     byte   // 0x2001
+	PpuStatus   byte // 0x2002
+	OamAddr     byte   // 0x2003
+	OamData     byte   // 0x2004
 	scrollFirst bool  // for 0x2005
-	PpuScrollX byte // 0x2005(1)
-	PpuScrollY byte // 0x2005(1)
-	PpuAddr word   // 0x2006
-	PpuData byte   // 0x2007
-	cycle   uint64
-	ram     Mem
-	bus     *Bus
-	renderer *Renderer
-
-	// setting
-	isHorizontalMirror bool
+	PpuScrollX  byte // 0x2005(1)
+	PpuScrollY  byte // 0x2005(1)
+	PpuAddr     word   // 0x2006
+	PpuData     byte   // 0x2007
+	cycle       uint64
+	vram        Mem
+	bus         *Bus
+	renderer    *Renderer
 
 	// Sprite RAM
 	spriteBuffer [64]*Sprite
@@ -43,10 +37,9 @@ func NewPpu(bus *Bus, chrRom []byte, r *Renderer, isHorizontalMirror bool) *Ppu{
 		PpuAddr:            0x00,
 		PpuData:            0x00,
 		cycle:              0,
-		ram:                NewRamInit(0x4000, chrRom),
+		vram:               NewVRamInit(0x4000, chrRom, isHorizontalMirror),
 		bus:                bus,
 		renderer:           r,
-		isHorizontalMirror: isHorizontalMirror,
 		spriteBuffer:       [64]*Sprite{},
 		spriteRam:          [64][4]byte{},
 	}
@@ -97,9 +90,9 @@ func (p *Ppu) readOamData() byte{
 func (p *Ppu) writeOamData(b byte){
 	if p.OamAddr % 4 == 0{
 		p.spriteRam[p.OamAddr / 4][0] = b
-	} else if p.OamAddr %4 == 1{
+	} else if p.OamAddr % 4 == 1{
 		p.spriteRam[p.OamAddr / 4][1] = b
-	} else if p.OamAddr %4 == 2 {
+	} else if p.OamAddr % 4 == 2 {
 		p.spriteRam[p.OamAddr / 4][2] = b
 	} else{
 		p.spriteRam[p.OamAddr / 4][3] = b
@@ -126,53 +119,21 @@ func (p *Ppu) writePpuAddr(b byte){
 
 // $0x2007
 func (p *Ppu) readPpuData() byte{
-	addr := p.calcVramAddr()
-	fmt.Printf("[read] 0x%x => 0x%x\n", p.PpuAddr, addr)
+	addr := p.PpuAddr
+	// fmt.Printf("[read] 0x%x => 0x%x\n", p.PpuAddr, addr)
 	p.PpuAddr += p.getIncrementCount()
-	return p.ram.load(addr)
+	return p.vram.load(addr)
 }
 
 func (p *Ppu) writePpuData(b byte){
-	addr := p.calcVramAddr()
-	fmt.Printf("[write] 0x%x => 0x%x\n", p.PpuAddr, addr)
-	p.ram.store(addr, b)
+	addr := p.PpuAddr
+	// fmt.Printf("[write] 0x%x => 0x%x\n", p.PpuAddr, addr)
+	p.vram.store(addr, b)
 	p.PpuAddr += p.getIncrementCount()
 }
 
 func (p *Ppu) clearVblank(){
 	p.PpuStatus &= 0x7F
-}
-
-func (p *Ppu) calcVramAddr() word{
-
-	if p.PpuAddr == 0x3F10 || p.PpuAddr == 0x3F14 || p.PpuAddr == 0x3F18 || p.PpuAddr == 0x3F1C{
-		// $3F10/$3F14/$3F18/$3F1C are mirror of $3F00/$3F04/$3F08/$3F0C.
-		return p.PpuAddr - 0x10
-	}
-
-	/*
-	// mirroring
-	if !p.isHorizontalMirror && p.PpuAddr >= 0x2800 && p.PpuAddr < 0x2FFF {
-		return p.PpuAddr - 0x0800
-	}
-	*/
-
-	if p.PpuAddr >= 0x3000 && p.PpuAddr < 0x3F00 {
-		// 0x3000 - 0x3EFF is mirror of 0x2000 - 0x2EFF
-		return p.PpuAddr - 0x1000
-	}
-
-	if p.PpuAddr >= 0x3F20 && p.PpuAddr <= 0x3FFF {
-		// 0x3F20 - 0x3FFF is mirror of 0x3F00 - 0x3F1F
-		return p.PpuAddr - p.PpuAddr % 0x20
-	}
-
-	if p.PpuAddr > 0x4000{
-		// Valid addresses are $0000-$3FFF; higher addresses will be mirrored down.
-		return p.PpuAddr % 0x4000
-	}
-
-	return p.PpuAddr
 }
 
 func (p *Ppu) enterVblank(){
@@ -231,19 +192,14 @@ func (p *Ppu) run(cycle uint64) bool{
 			p.hitSprite()
 		}
 
-		// 262本のスキャンライン
-		// 1 - 240 => bg/spritesの描画
-		// 240 - 262 => vblank期間。vramの書き換えができる.
 		if p.renderer.line <= 240 && p.renderer.line % 8 == 0 {
 			p.buildBackground(p.renderer.line - 1, p.renderer.tiles)
 		}
 
-		// Start Vblank
 		if p.renderer.line == 241{
 			p.enterVblank()
 		}
 
-		// End Vblank
 		if p.renderer.line == 262 {
 			p.leaveVblank()
 			p.endHitSprite()
@@ -347,29 +303,12 @@ func (p *Ppu) getBlockId(x, y int) int{
 
 func (p *Ppu) getAttribute(x, y, offset int) int{
 	addr := word(int(x / 4) + (int(y / 4) * 8) + 0x23C0 + offset)
-	addr = p.downMirror(addr)
-	return int(p.ram.load(addr))
+	return int(p.vram.load(addr))
 }
 
-// Gets sprite ids from the name table.
 func (p *Ppu) getSpriteId(x, y, offset int) int{
 	addr := word(y * 32 + x + 0x2000 +  offset)
-	addr = p.downMirror(addr)
-	return int(p.ram.load(addr))
-}
-
-func (p *Ppu) downMirror(addr word) word{
-	if !p.isHorizontalMirror {
-		return addr
-	}
-
-	// Is nametable 1 or 3?
-	if (addr >= 0x2400 && addr < 0x2800) || addr >= 0x2C00{
-		return addr - 0x0400
-	}
-
-	// name table 2
-	return addr
+	return int(p.vram.load(addr))
 }
 
 func (p *Ppu) buildSprite(spriteId int, offset word) [8][8]byte{
@@ -378,7 +317,7 @@ func (p *Ppu) buildSprite(spriteId int, offset word) [8][8]byte{
 	for i = 0; i<16; i++{
 		for  j = 0; j<8; j++{
 			addr := word(spriteId) * 16 + i + offset
-			b := p.ram.load(addr)
+			b := p.vram.load(addr)
 			if b & (0x80 >> j) != 0x00{
 				sprite[i%8][j] += 0x01 << uint(i/8) // 0, 1, 3
 			}
@@ -390,11 +329,11 @@ func (p *Ppu) buildSprite(spriteId int, offset word) [8][8]byte{
 
 func (p *Ppu) getBackgroundPalette() [16]color.RGBA{
 	var currentPalette [16]color.RGBA
-	for i, b := range p.ram.slice(0x3F00, 0x3F10){
+	for i, b := range p.vram.slice(0x3F00, 0x3F10){
 		if i % 4 == 0 {
 			// 0x3F04, 0x3F08, 0x3C0C are ignored by background.
 			// Instead of here, use these values in the sprite palette.
-			currentPalette[i] = SystemPalette[p.ram.load(0x3F00)]
+			currentPalette[i] = SystemPalette[p.vram.load(0x3F00)]
 		}else{
 			currentPalette[i] = SystemPalette[b]
 		}
@@ -404,10 +343,10 @@ func (p *Ppu) getBackgroundPalette() [16]color.RGBA{
 
 func (p *Ppu) getSpritePalette() [16]color.RGBA{
 	var currentPalette [16]color.RGBA
-	for i, b := range p.ram.slice(0x3F10, 0x3F20){
+	for i, b := range p.vram.slice(0x3F10, 0x3F20){
 		if i % 4 == 0 {
 			// 0x3F10, 0x3F14, 0x3F18, 0x3F1C are mirror of 0x3F00, 0x3F04, 0x3F08, 0x3CFC
-			currentPalette[i] = SystemPalette[p.ram.load(word(0x3F00+i))]
+			currentPalette[i] = SystemPalette[p.vram.load(word(0x3F00+i))]
 		}else{
 			currentPalette[i] = SystemPalette[b]
 		}
