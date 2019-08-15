@@ -44,14 +44,15 @@ func (r *Renderer) isSprite8() bool{
 }
 
 func (r *Renderer) isEnableBg() bool{
-	return r.ppuMask & 0x08 != 1
+	return r.ppuMask & 0x08 != 0
 }
 
 func (r *Renderer) isEnableSprite() bool{
-	return r.ppuMask & 0x10 != 1
+	return r.ppuMask & 0x10 != 0
 }
 
 func (r *Renderer) render(ppuMask byte, isBgEnabled bool, isSpriteEnabled bool){
+	r.ppuMask = ppuMask
 
 	if isBgEnabled{
 		r.renderBackground(r.tiles)
