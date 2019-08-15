@@ -19,41 +19,34 @@ func newDirector(nes *nes.Nes, window *glfw.Window) *Director {
 	}
 }
 
+var keyStates [8]bool
+
 func (d *Director) setKeyCallback(){
 	callback := func(w *glfw.Window, key glfw.Key, scancode int, action glfw.Action, mods glfw.ModifierKey){
 		if !(action == glfw.Press || action == glfw.Release){
 			return
 		}
 
-		// 両方押したとき周りの挙動が少しおかしいので要修正
-		var b [8]bool
 		var isPush = action == glfw.Press
 		switch key {
 		case glfw.KeyA:
-			b[0] = isPush
-			// fallthrough
+			keyStates[0] = isPush
 		case glfw.KeyB:
-			b[1] = isPush
-			// fallthrough
+			keyStates[1] = isPush
 		case glfw.KeyRightShift :
-			b[2] = isPush
-			// fallthrough
+			keyStates[2] = isPush
 		case glfw.KeyEnter :
-			b[3] = isPush
-			// fallthrough
+			keyStates[3] = isPush
 		case glfw.KeyUp :
-			b[4] = isPush
-			// fallthrough
+			keyStates[4] = isPush
 		case glfw.KeyDown :
-			b[5] = isPush
-			// fallthrough
+			keyStates[5] = isPush
 		case glfw.KeyLeft :
-			b[6] = isPush
-			// fallthrough
+			keyStates[6] = isPush
 		case glfw.KeyRight :
-			b[7] = isPush
+			keyStates[7] = isPush
 		}
-		d.nes.PushButton(b)
+		d.nes.PushButton(keyStates)
 	}
 	d.window.SetKeyCallback(callback)
 }
