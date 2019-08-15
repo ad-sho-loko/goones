@@ -1,6 +1,7 @@
 package nes
 
 import (
+	"fmt"
 	"image/color"
 )
 
@@ -31,17 +32,23 @@ type Ppu struct {
 
 func NewPpu(bus *Bus, chrRom []byte, r *Renderer, isHorizontalMirror bool) *Ppu{
 	return &Ppu{
-		PpuCtrl:0x00,
-		PpuMask:0x00,
-		PpuStatus:0x00,
-		PpuAddr:0x00,
-		PpuData:0x00,
-		scrollFirst:true,
-		cycle:0,
-		ram:NewRamInit(0x4000, chrRom),
-		bus:bus,
-		renderer:r,
-		isHorizontalMirror:isHorizontalMirror,
+		PpuCtrl:            0x00,
+		PpuMask:            0x00,
+		PpuStatus:          0x00,
+		OamAddr:            0,
+		OamData:            0,
+		scrollFirst:        true,
+		PpuScrollX:         0,
+		PpuScrollY:         0,
+		PpuAddr:            0x00,
+		PpuData:            0x00,
+		cycle:              0,
+		ram:                NewRamInit(0x4000, chrRom),
+		bus:                bus,
+		renderer:           r,
+		isHorizontalMirror: isHorizontalMirror,
+		spriteBuffer:       [64]*Sprite{},
+		spriteRam:          [64][4]byte{},
 	}
 }
 
@@ -68,17 +75,23 @@ func (p *Ppu) writePpuMask(b byte){
 	p.PpuMask = b
 }
 
-func (p *Ppu) writePpuScroll(b byte){
-	if p.scrollFirst {
-		p.PpuScrollX = b
-	} else{
-		p.PpuScrollY = b
-	}
-	p.scrollFirst = !p.scrollFirst
+// 0x2002
+func (p *Ppu) readPpuStatus() byte{
+	p.scrollFirst = true // reset scroll register($0x2006)
+	b := p.PpuStatus
+	p.clearVblank()
+	// p.unsetSpriteHit()
+	return b
 }
 
+// $0x2003
 func (p *Ppu) writeOamAddr(b byte){
 	p.OamAddr = b
+}
+
+// $0x2004
+func (p *Ppu) readOamData() byte{
+	return p.OamData
 }
 
 func (p *Ppu) writeOamData(b byte){
@@ -94,33 +107,40 @@ func (p *Ppu) writeOamData(b byte){
 	p.OamAddr++
 }
 
+
+// $0x2005
+func (p *Ppu) writePpuScroll(b byte){
+	if p.scrollFirst {
+		p.PpuScrollX = b
+	} else{
+		p.PpuScrollY = b
+	}
+
+	p.scrollFirst = !p.scrollFirst
+}
+
+// $0x2006
 func (p *Ppu) writePpuAddr(b byte){
 	p.PpuAddr = p.PpuAddr << 8 | word(b)
 }
 
-// writeVramData
+// $0x2007
+func (p *Ppu) readPpuData() byte{
+	addr := p.calcVramAddr()
+	fmt.Printf("[read] 0x%x => 0x%x\n", p.PpuAddr, addr)
+	p.PpuAddr += p.getIncrementCount()
+	return p.ram.load(addr)
+}
+
 func (p *Ppu) writePpuData(b byte){
 	addr := p.calcVramAddr()
-	// fmt.Printf("0x%x => 0x%x \n", p.PpuAddr, addr)
+	fmt.Printf("[write] 0x%x => 0x%x\n", p.PpuAddr, addr)
 	p.ram.store(addr, b)
 	p.PpuAddr += p.getIncrementCount()
 }
 
-// 0x2002
-func (p *Ppu) readPpuStatus() byte{
-	// reset scroll x and scroll y
-	p.scrollFirst = true
-	return p.PpuStatus
-}
-
-func (p *Ppu) readOamData() byte{
-	return p.OamData
-}
-
-func (p *Ppu) readPpuData() byte{
-	addr := p.calcVramAddr()
-	p.PpuAddr += p.getIncrementCount()
-	return p.ram.load(addr)
+func (p *Ppu) clearVblank(){
+	p.PpuStatus &= 0x7F
 }
 
 func (p *Ppu) calcVramAddr() word{
@@ -130,6 +150,13 @@ func (p *Ppu) calcVramAddr() word{
 		return p.PpuAddr - 0x10
 	}
 
+	/*
+	// mirroring
+	if !p.isHorizontalMirror && p.PpuAddr >= 0x2800 && p.PpuAddr < 0x2FFF {
+		return p.PpuAddr - 0x0800
+	}
+	*/
+
 	if p.PpuAddr >= 0x3000 && p.PpuAddr < 0x3F00 {
 		// 0x3000 - 0x3EFF is mirror of 0x2000 - 0x2EFF
 		return p.PpuAddr - 0x1000
@@ -137,11 +164,11 @@ func (p *Ppu) calcVramAddr() word{
 
 	if p.PpuAddr >= 0x3F20 && p.PpuAddr <= 0x3FFF {
 		// 0x3F20 - 0x3FFF is mirror of 0x3F00 - 0x3F1F
-		return p.PpuAddr - p.PpuAddr%0x20
+		return p.PpuAddr - p.PpuAddr % 0x20
 	}
 
 	if p.PpuAddr > 0x4000{
-		// 0x4000- is mirror of 0x0000-
+		// Valid addresses are $0000-$3FFF; higher addresses will be mirrored down.
 		return p.PpuAddr % 0x4000
 	}
 
@@ -160,7 +187,7 @@ func (p *Ppu) leaveVblank() {
 	p.renderer.backgroundPalette = p.getBackgroundPalette()
 	p.renderer.spritePalette = p.getSpritePalette()
 	p.renderer.line = 0
-	p.PpuStatus &= 0x7F
+	p.clearVblank()
 	// not cool
 	// p.bus.cpu.unsetBit(Irq)
 }
@@ -178,8 +205,22 @@ func (p *Ppu) hasHitSprite() bool{
 	return p.renderer.line == int(zeroSpriteY) && p.isBackgroundEnable() && p.isSpriteEnable()
 }
 
+func (p *Ppu) hitSprite(){
+	p.PpuStatus |= 0x40
+}
+
+func (p *Ppu) endHitSprite(){
+	p.PpuStatus &= 0xBF
+}
+
 func (p *Ppu) run(cycle uint64) bool{
 	p.cycle+= cycle * 3
+
+	if p.renderer.line == 0{
+		for i, r := range p.spriteRam{
+			p.spriteBuffer[i] = p.getSprite(r[0], r[1], r[2], r[3])
+		}
+	}
 
 	if p.cycle >= 341 {
 		p.cycle -= 341
@@ -187,7 +228,7 @@ func (p *Ppu) run(cycle uint64) bool{
 
 		// 0爆弾
 		if p.hasHitSprite(){
-			p.PpuStatus |= 0x40
+			p.hitSprite()
 		}
 
 		// 262本のスキャンライン
@@ -204,12 +245,9 @@ func (p *Ppu) run(cycle uint64) bool{
 
 		// End Vblank
 		if p.renderer.line == 262 {
-			for i, r := range p.spriteRam{
-				p.spriteBuffer[i] = p.getSprite(r[0], r[1], r[2], r[3])
-			}
-
 			p.leaveVblank()
-			p.PpuStatus &= 0xFF - 0x40
+			p.endHitSprite()
+			// p.bus.cpu.intrrupt = nil
 			return true
 		}
 	}
@@ -248,9 +286,12 @@ func (p *Ppu) adjustScrollY() int{
 	adjusted := int(p.PpuScrollY) + (int(p.fetchNameTableId() / 2) * 240)
 
 	if p.PpuScrollY >= 240 {
-		// スクロールレジスタYは255まで値が格納できるが、
-		// 実際に描画するのは240までなので調整する必要がある
-		adjusted -= 255
+		// Horizontal offsets range from 0 to 255. "Normal" vertical offsets range from 0 to 239,
+		// while values of 240 to 255 are treated as -16 through -1 in a way,
+		// but tile data is incorrectly fetched from the attribute table.
+		// By changing the values here across several frames and writing tiles to newly revealed areas of the nametables,
+		// one can achieve the effect of a camera panning over a large background.
+		adjusted -= 256
 	}
 
 	return adjusted
@@ -386,6 +427,14 @@ type Sprite struct {
 
 func (p *Ppu) getSprite(y, spriteId, attr, x byte) *Sprite{
 	bytes := p.buildSprite(int(spriteId), p.fetchSpriteChrTable())
+
+	/*
+	// INFO: Offset sprite Y position, because First and last 8line is not rendered.
+	if y < 8{
+		return &Sprite{}
+	}
+	y-=8
+	*/
 
 	return &Sprite{
 		// NOTE : Sprite data is delayed by one scanline;

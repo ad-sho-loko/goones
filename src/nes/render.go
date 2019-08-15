@@ -63,7 +63,7 @@ func (r *Renderer) render(ppuMask byte, isBgEnabled bool, isSpriteEnabled bool){
 }
 
 func (r *Renderer) renderBackground(background []*Tile){
-	for i := 0; i < len(background); i++ {
+	for i:= 0; i < len(background); i++ {
 		x := (i % 32) * 8
 		y := int(i / 32) * 8
 		r.renderTile(background[i], x, y)
@@ -142,9 +142,6 @@ func (r *Renderer) renderSprite(sprite *Sprite){
 			y := int(sprite.y) + i
 
 			r.img.SetRGBA(x, y, rgba)
-			// 上下8pxは描画不要
-			/* if y >= 8 && y < 224{
-			}*/
 		}
 	}
 }

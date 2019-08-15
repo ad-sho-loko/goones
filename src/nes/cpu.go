@@ -639,7 +639,7 @@ func (c *Cpu) reset(){
 	addr := c.bus.Loadw(0xFFFC)
 	c.jmp(addr)
 	c.setBit(Irq)
-	// c.unsetBit(Break)
+	c.unsetBit(Break)
 	c.cycle += 7
 }
 
