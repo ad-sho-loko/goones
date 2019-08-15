@@ -60,7 +60,6 @@ func (r *Renderer) render(ppuMask byte, isBgEnabled bool, isSpriteEnabled bool){
 	if isSpriteEnabled{
 		r.renderSprites(r.sprites)
 	}
-
 }
 
 func (r *Renderer) renderBackground(background []*Tile){
@@ -118,12 +117,8 @@ func (r *Renderer) reverse(b [8][8]byte, isHorizontal bool) [8][8]byte{
 }
 
 func (r *Renderer) renderSprite(sprite *Sprite){
-	if sprite.isUseBg{
-		return
-	}
 
-	// 上下8ラインは描画不要
-	if sprite.y < 8 || sprite.y > 232{
+	if sprite.isUseBg{
 		return
 	}
 
@@ -145,7 +140,11 @@ func (r *Renderer) renderSprite(sprite *Sprite){
 			rgba := r.spritePalette[paletteIdx]
 			x := int(sprite.x) + j
 			y := int(sprite.y) + i
+
 			r.img.SetRGBA(x, y, rgba)
+			// 上下8pxは描画不要
+			/* if y >= 8 && y < 224{
+			}*/
 		}
 	}
 }

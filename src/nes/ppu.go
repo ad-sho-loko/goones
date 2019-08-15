@@ -98,9 +98,10 @@ func (p *Ppu) writePpuAddr(b byte){
 	p.PpuAddr = p.PpuAddr << 8 | word(b)
 }
 
+// writeVramData
 func (p *Ppu) writePpuData(b byte){
-	addr := p.calcVramAddr(p.PpuAddr)
-	// fmt.Printf("0x%x => 0x%x\n", p.PpuAddr, addr)
+	addr := p.calcVramAddr()
+	// fmt.Printf("0x%x => 0x%x \n", p.PpuAddr, addr)
 	p.ram.store(addr, b)
 	p.PpuAddr += p.getIncrementCount()
 }
@@ -117,20 +118,34 @@ func (p *Ppu) readOamData() byte{
 }
 
 func (p *Ppu) readPpuData() byte{
-	addr := p.calcVramAddr(p.PpuAddr)
+	addr := p.calcVramAddr()
 	p.PpuAddr += p.getIncrementCount()
 	return p.ram.load(addr)
 }
 
-func (p *Ppu) calcVramAddr(addr word) word{
-	if p.PpuAddr >= 0x3000 && p.PpuAddr <= 0x3EFF{
+func (p *Ppu) calcVramAddr() word{
+
+	if p.PpuAddr == 0x3F10 || p.PpuAddr == 0x3F14 || p.PpuAddr == 0x3F18 || p.PpuAddr == 0x3F1C{
+		// $3F10/$3F14/$3F18/$3F1C are mirror of $3F00/$3F04/$3F08/$3F0C.
+		return p.PpuAddr - 0x10
+	}
+
+	if p.PpuAddr >= 0x3000 && p.PpuAddr < 0x3F00 {
 		// 0x3000 - 0x3EFF is mirror of 0x2000 - 0x2EFF
 		return p.PpuAddr - 0x1000
-	}else if p.PpuAddr >= 0x3F20 && p.PpuAddr <= 0x3FFF{
-		return p.PpuAddr - 0x0010
-	}else{
-		return addr
 	}
+
+	if p.PpuAddr >= 0x3F20 && p.PpuAddr <= 0x3FFF {
+		// 0x3F20 - 0x3FFF is mirror of 0x3F00 - 0x3F1F
+		return p.PpuAddr - p.PpuAddr%0x20
+	}
+
+	if p.PpuAddr > 0x4000{
+		// 0x4000- is mirror of 0x0000-
+		return p.PpuAddr % 0x4000
+	}
+
+	return p.PpuAddr
 }
 
 func (p *Ppu) enterVblank(){
@@ -193,7 +208,6 @@ func (p *Ppu) run(cycle uint64) bool{
 				p.spriteBuffer[i] = p.getSprite(r[0], r[1], r[2], r[3])
 			}
 
-
 			p.leaveVblank()
 			p.PpuStatus &= 0xFF - 0x40
 			return true
@@ -229,7 +243,6 @@ type Tile struct {
 	scrollX byte
 	scrollY byte
 }
-
 
 func (p *Ppu) adjustScrollY() int{
 	adjusted := int(p.PpuScrollY) + (int(p.fetchNameTableId() / 2) * 240)
@@ -310,7 +323,7 @@ func (p *Ppu) downMirror(addr word) word{
 	}
 
 	// Is nametable 1 or 3?
-	if addr >= 0x2400 && addr < 0x2800 || addr >= 0x2C00{
+	if (addr >= 0x2400 && addr < 0x2800) || addr >= 0x2C00{
 		return addr - 0x0400
 	}
 
@@ -371,11 +384,16 @@ type Sprite struct {
 	paletteId byte
 }
 
-func (p *Ppu) getSprite(y, tileIndex, attr, x byte) *Sprite{
+func (p *Ppu) getSprite(y, spriteId, attr, x byte) *Sprite{
+	bytes := p.buildSprite(int(spriteId), p.fetchSpriteChrTable())
 
-	bytes := p.buildSprite(int(tileIndex), p.fetchSpriteChrTable())
 	return &Sprite{
-		y:y,
+		// NOTE : Sprite data is delayed by one scanline;
+		// you must subtract 1 from the sprite's Y coordinate before writing it here.
+		// Hide a sprite by writing any values in $EF-$FF here.
+		// Sprites are never displayed on the first line of the picture,
+		// and it is impossible to place a sprite partially off the top of the screen.
+		y:y-1,
 		x:x,
 		bytes:bytes,
 		isVerticalReverse:attr & 0x80 != 0,
