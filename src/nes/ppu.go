@@ -86,10 +86,13 @@ func (p *Ppu) writeOamAddr(b byte){
 
 // $0x2004
 func (p *Ppu) readOamData() byte{
-	return p.OamData
+	return p.vram.load(word(p.OamAddr))
+	// return p.OamData
 }
 
 func (p *Ppu) writeOamData(b byte){
+	p.vram.store(word(p.OamAddr), b)
+	/*
 	if p.OamAddr % 4 == 0{
 		p.spriteRam[p.OamAddr / 4][0] = b
 	} else if p.OamAddr % 4 == 1{
@@ -99,6 +102,7 @@ func (p *Ppu) writeOamData(b byte){
 	} else{
 		p.spriteRam[p.OamAddr / 4][3] = b
 	}
+	*/
 	p.OamAddr++
 }
 
