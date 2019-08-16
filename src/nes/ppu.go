@@ -23,7 +23,7 @@ type Ppu struct {
 
 	// Sprite RAM
 	spriteBuffer [64]*Sprite
-	spriteRam [64][4]byte // 0=y, 1=idx, 2=attr, 3=x
+	spriteRam Mem
 }
 
 func NewPpu(bus *Bus, chrRom []byte, r *Renderer, isHorizontalMirror bool) *Ppu{
@@ -43,7 +43,7 @@ func NewPpu(bus *Bus, chrRom []byte, r *Renderer, isHorizontalMirror bool) *Ppu{
 		bus:                bus,
 		renderer:           r,
 		spriteBuffer:       [64]*Sprite{},
-		spriteRam:          [64][4]byte{},
+		spriteRam:          NewRam(0x100),
 	}
 }
 
@@ -86,26 +86,47 @@ func (p *Ppu) writeOamAddr(b byte){
 
 // $0x2004
 func (p *Ppu) readOamData() byte{
-	return p.vram.load(word(p.OamAddr))
-	// return p.OamData
+	return p.spriteRam.load(word(p.OamAddr))
 }
 
 func (p *Ppu) writeOamData(b byte){
-	p.vram.store(word(p.OamAddr), b)
-	/*
-	if p.OamAddr % 4 == 0{
-		p.spriteRam[p.OamAddr / 4][0] = b
-	} else if p.OamAddr % 4 == 1{
-		p.spriteRam[p.OamAddr / 4][1] = b
-	} else if p.OamAddr % 4 == 2 {
-		p.spriteRam[p.OamAddr / 4][2] = b
-	} else{
-		p.spriteRam[p.OamAddr / 4][3] = b
-	}
-	*/
+	p.spriteRam.store(word(p.OamAddr), b)
 	p.OamAddr++
 }
 
+func (p *Ppu) buildSprites(){
+	offset := p.fetchSpriteChrTable()
+
+	for i := 0; i < 0x0100; i+=4 {
+		// INFO: Offset sprite Y position, because First and last 8line is not rendered.
+		y := p.spriteRam.load(word(i)) - 8
+		if y < 0 {
+			return
+		}
+
+		spriteId := p.spriteRam.load(word(i) + 1)
+		attr := p.spriteRam.load(word(i) + 2)
+		x := p.spriteRam.load(word(i) + 3)
+		bytes := p.buildSprite(int(spriteId), offset)
+
+		sprite := &Sprite{
+			// NOTE : Sprite data is delayed by one scanline;
+			// you must subtract 1 from the sprite's Y coordinate before writing it here.
+			// Hide a sprite by writing any values in $EF-$FF here.
+			// Sprites are never displayed on the first line of the picture,
+			// and it is impossible to place a sprite partially off the top of the screen.
+			y:y-1,
+			x:x,
+			bytes:bytes,
+			isVerticalReverse:attr & 0x80 != 0,
+			isHorizontalReverse:attr & 0x40 != 0,
+			isUseBg:attr & 0x20 != 0,
+			paletteId:attr & 0x03,
+		}
+
+		p.spriteBuffer[i/4] = sprite
+	}
+}
 
 // $0x2005
 func (p *Ppu) writePpuScroll(b byte){
@@ -168,7 +189,7 @@ func (p *Ppu) isSpriteEnable() bool {
 }
 
 func (p *Ppu) hasHitSprite() bool{
-	zeroSpriteY := p.spriteRam[0][0]
+	zeroSpriteY := p.spriteRam.load(0)
 	return p.renderer.line == int(zeroSpriteY)  && p.isBackgroundEnable() && p.isSpriteEnable()
 }
 
@@ -186,9 +207,7 @@ func (p *Ppu) run(cycle uint64) bool{
 	p.cycle+= cycle * 3
 
 	if p.renderer.line == 0{
-		for i, r := range p.spriteRam{
-			p.spriteBuffer[i] = p.getSprite(r[0], r[1], r[2], r[3])
-		}
+		p.buildSprites()
 	}
 
 	if p.cycle >= 341 {
@@ -369,31 +388,4 @@ type Sprite struct {
 	isHorizontalReverse bool
 	isUseBg bool
 	paletteId byte
-}
-
-func (p *Ppu) getSprite(y, spriteId, attr, x byte) *Sprite{
-	bytes := p.buildSprite(int(spriteId), p.fetchSpriteChrTable())
-
-	/*
-	// INFO: Offset sprite Y position, because First and last 8line is not rendered.
-	if y < 8{
-		return &Sprite{}
-	}
-	y-=8
-	*/
-
-	return &Sprite{
-		// NOTE : Sprite data is delayed by one scanline;
-		// you must subtract 1 from the sprite's Y coordinate before writing it here.
-		// Hide a sprite by writing any values in $EF-$FF here.
-		// Sprites are never displayed on the first line of the picture,
-		// and it is impossible to place a sprite partially off the top of the screen.
-		y:y-1,
-		x:x,
-		bytes:bytes,
-		isVerticalReverse:attr & 0x80 != 0,
-		isHorizontalReverse:attr & 0x40 != 0,
-		isUseBg:attr & 0x20 != 0,
-		paletteId:attr & 0x03,
-	}
 }
