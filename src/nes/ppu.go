@@ -24,6 +24,7 @@ type Ppu struct {
 	// Sprite RAM
 	spriteBuffer [64]*Sprite
 	spriteRam Mem
+	vramBuf byte
 }
 
 func NewPpu(bus *Bus, chrRom []byte, r *Renderer, isHorizontalMirror bool) *Ppu{
@@ -94,40 +95,6 @@ func (p *Ppu) writeOamData(b byte){
 	p.OamAddr++
 }
 
-func (p *Ppu) buildSprites(){
-	offset := p.fetchSpriteChrTable()
-
-	for i := 0; i < 0x0100; i+=4 {
-		// INFO: Offset sprite Y position, because First and last 8line is not rendered.
-		y := p.spriteRam.load(word(i)) - 8
-		if y < 0 {
-			return
-		}
-
-		spriteId := p.spriteRam.load(word(i) + 1)
-		attr := p.spriteRam.load(word(i) + 2)
-		x := p.spriteRam.load(word(i) + 3)
-		bytes := p.buildSprite(int(spriteId), offset)
-
-		sprite := &Sprite{
-			// NOTE : Sprite data is delayed by one scanline;
-			// you must subtract 1 from the sprite's Y coordinate before writing it here.
-			// Hide a sprite by writing any values in $EF-$FF here.
-			// Sprites are never displayed on the first line of the picture,
-			// and it is impossible to place a sprite partially off the top of the screen.
-			y:y-1,
-			x:x,
-			bytes:bytes,
-			isVerticalReverse:attr & 0x80 != 0,
-			isHorizontalReverse:attr & 0x40 != 0,
-			isUseBg:attr & 0x20 != 0,
-			paletteId:attr & 0x03,
-		}
-
-		p.spriteBuffer[i/4] = sprite
-	}
-}
-
 // $0x2005
 func (p *Ppu) writePpuScroll(b byte){
 	if p.scrollFirst {
@@ -146,10 +113,16 @@ func (p *Ppu) writePpuAddr(b byte){
 
 // $0x2007
 func (p *Ppu) readPpuData() byte{
+	// emulate buf delay
+	b := p.vramBuf
 	addr := p.PpuAddr
-	// fmt.Printf("[read] 0x%x => 0x%x\n", p.PpuAddr, addr)
 	p.PpuAddr += p.getIncrementCount()
-	return p.vram.load(addr)
+
+	if addr >= 0x3F00 {
+		return p.vram.load(addr)
+	}
+	p.vramBuf = p.vram.load(addr)
+	return b
 }
 
 func (p *Ppu) writePpuData(b byte){
@@ -388,4 +361,39 @@ type Sprite struct {
 	isHorizontalReverse bool
 	isUseBg bool
 	paletteId byte
+}
+
+
+func (p *Ppu) buildSprites(){
+	offset := p.fetchSpriteChrTable()
+
+	for i := 0; i < 0x0100; i+=4 {
+		// INFO: Offset sprite Y position, because First and last 8line is not rendered.
+		y := p.spriteRam.load(word(i)) - 8
+		if y < 0 {
+			return
+		}
+
+		spriteId := p.spriteRam.load(word(i) + 1)
+		attr := p.spriteRam.load(word(i) + 2)
+		x := p.spriteRam.load(word(i) + 3)
+		bytes := p.buildSprite(int(spriteId), offset)
+
+		sprite := &Sprite{
+			// NOTE : Sprite data is delayed by one scanline;
+			// you must subtract 1 from the sprite's Y coordinate before writing it here.
+			// Hide a sprite by writing any values in $EF-$FF here.
+			// Sprites are never displayed on the first line of the picture,
+			// and it is impossible to place a sprite partially off the top of the screen.
+			y:y-1,
+			x:x,
+			bytes:bytes,
+			isVerticalReverse:attr & 0x80 != 0,
+			isHorizontalReverse:attr & 0x40 != 0,
+			isUseBg:attr & 0x20 != 0,
+			paletteId:attr & 0x03,
+		}
+
+		p.spriteBuffer[i/4] = sprite
+	}
 }
