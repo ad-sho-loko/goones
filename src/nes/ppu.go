@@ -76,7 +76,7 @@ func (p *Ppu) readPpuStatus() byte{
 	p.scrollFirst = true // reset scroll register($0x2006)
 	b := p.PpuStatus
 	p.clearVblank()
-	// p.unsetSpriteHit()
+	p.endHitSprite()
 	return b
 }
 
@@ -134,12 +134,16 @@ func (p *Ppu) writePpuData(b byte){
 	p.PpuAddr += p.getIncrementCount()
 }
 
+func (p *Ppu) setVblank(){
+	p.PpuStatus |= 0x80
+}
+
 func (p *Ppu) clearVblank(){
 	p.PpuStatus &= 0x7F
 }
 
 func (p *Ppu) enterVblank(){
-	p.PpuStatus |= 0x80
+	p.setVblank()
 	if p.isAbleNmiVblank(){
 		p.bus.cpu.InterruptNmi()
 	}
@@ -205,7 +209,7 @@ func (p *Ppu) run(cycle uint64) bool{
 		if p.renderer.line == 262 {
 			p.leaveVblank()
 			p.endHitSprite()
-			// p.bus.cpu.intrrupt = nil
+			p.bus.cpu.intrrupt = nil
 			return true
 		}
 	}
@@ -371,7 +375,8 @@ func (p *Ppu) buildSprites(){
 
 	for i := 0; i < 0x0100; i+=4 {
 		// INFO: Offset sprite Y position, because First and last 8line is not rendered.
-		y := p.spriteRam.load(word(i)) - 8
+		y := p.spriteRam.load(word(i)) // - 8
+
 		if y < 0 {
 			return
 		}

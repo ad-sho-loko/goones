@@ -80,6 +80,8 @@ func (r *Renderer) renderTile(tile *Tile, tileX, tileY int){
 			rgba := r.backgroundPalette[paletteIdx]
 			x := tileX + j - int(offsetX)
 			y := tileY + i - int(offsetY)
+			x = int(byte(x))
+			y = int(byte(y))
 			if x >= 0 && x <= 0xFF && y >= 0 && y < 240 {
 				r.img.SetRGBA(x, y, rgba)
 			}
@@ -129,7 +131,6 @@ func (r *Renderer) renderSprite(sprite *Sprite){
 		sprite.bytes = r.reverse(sprite.bytes, false)
 	}
 
-	// fix : 右端のSpriteが更新されないバグあり
 	for i := 0; i < 8; i++ {
 		for j:= 0; j < 8; j++ {
 
@@ -141,6 +142,8 @@ func (r *Renderer) renderSprite(sprite *Sprite){
 			rgba := r.spritePalette[paletteIdx]
 			x := int(sprite.x) + j
 			y := int(sprite.y) + i
+			x = int(byte(x))
+			y = int(byte(y))
 
 			r.img.SetRGBA(x, y, rgba)
 		}
