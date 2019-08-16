@@ -38,11 +38,11 @@ func NewVRamInit(size int, init []byte, isHorizontalMirror bool) Mem {
 	}
 }
 
-func isNameTable2(addr word) bool{
+func isNameTable1(addr word) bool{
 	return addr >= 0x2400 && addr < 0x2800
 }
 
-func isNameTable4(addr word) bool{
+func isNameTable3(addr word) bool{
 	return addr >= 0x2C00 && addr < 0x3000
 }
 
@@ -57,14 +57,14 @@ func (m *VRam) load(addr word) byte{
 	}
 
 	if addr >= 0x3F20 && addr <= 0x3FFF {
-		return m.data[addr - (addr % 0x20)]
+		return m.data[addr - (0x00FF & addr)]
 	}
 
 	if addr >= 0x4000{
-		return m.data[addr%0x4000]
+		return m.data[addr % 0x4000]
 	}
 
-	if isNameTable2(addr) || isNameTable4(addr){
+	if isNameTable1(addr) || isNameTable3(addr){
 		if m.isHorizontalMirror{
 			return m.data[addr-0x0400]
 		}else{
@@ -91,7 +91,7 @@ func (m *VRam) store(addr word, b byte){
 
 	if addr >= 0x3F20 && addr <= 0x3FFF {
 		// 0x3F20 - 0x3FFF is mirror of 0x3F00 - 0x3F1F
-		m.data[addr - (addr % 0x20)] = b
+		m.data[addr - (0x00FF & addr)] = b
 		return
 	}
 
@@ -102,7 +102,7 @@ func (m *VRam) store(addr word, b byte){
 
 
 	// 水平ミラーリング or 垂直ミラーリング
-	if isNameTable2(addr) || isNameTable4(addr){
+	if isNameTable1(addr) || isNameTable3(addr){
 		if m.isHorizontalMirror{
 			m.data[addr-0x0400] = b
 		}else{
