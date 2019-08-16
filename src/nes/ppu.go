@@ -114,14 +114,16 @@ func (p *Ppu) writePpuAddr(b byte){
 // $0x2007
 func (p *Ppu) readPpuData() byte{
 	// emulate buf delay
-	b := p.vramBuf
-	addr := p.PpuAddr
-	p.PpuAddr += p.getIncrementCount()
-
-	if addr >= 0x3F00 {
-		return p.vram.load(addr)
+	if p.PpuAddr >= 0x3F00 {
+		b := p.vram.load(p.PpuAddr)
+		p.vramBuf = p.vram.load(p.PpuAddr - 0x1000)
+		p.PpuAddr += p.getIncrementCount()
+		return b
 	}
-	p.vramBuf = p.vram.load(addr)
+
+	b := p.vramBuf
+	p.vramBuf = p.vram.load(p.PpuAddr)
+	p.PpuAddr += p.getIncrementCount()
 	return b
 }
 
