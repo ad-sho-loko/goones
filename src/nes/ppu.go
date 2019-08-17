@@ -15,6 +15,7 @@ type Ppu struct {
 	PpuScrollX  byte // 0x2005(1)
 	PpuScrollY  byte // 0x2005(1)
 	PpuAddr     word   // 0x2006
+	isLowerAddr bool   // for 0x2006
 	PpuData     byte   // 0x2007
 	cycle       uint64
 	vram        Mem
@@ -108,12 +109,18 @@ func (p *Ppu) writePpuScroll(b byte){
 
 // $0x2006
 func (p *Ppu) writePpuAddr(b byte){
-	p.PpuAddr = p.PpuAddr << 8 | word(b)
+	if p.isLowerAddr{
+		p.PpuAddr += word(b)
+		p.isLowerAddr = false
+	}else{
+		p.PpuAddr = word(b) << 8
+		p.isLowerAddr = true
+	}
 }
 
 // $0x2007
 func (p *Ppu) readPpuData() byte{
-	// emulate buf delay
+
 	if p.PpuAddr >= 0x3F00 {
 		b := p.vram.load(p.PpuAddr)
 		p.vramBuf = p.vram.load(p.PpuAddr - 0x1000)
@@ -121,6 +128,7 @@ func (p *Ppu) readPpuData() byte{
 		return b
 	}
 
+	// emulate buf delay
 	b := p.vramBuf
 	p.vramBuf = p.vram.load(p.PpuAddr)
 	p.PpuAddr += p.getIncrementCount()

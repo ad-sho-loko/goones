@@ -57,7 +57,7 @@ func (m *VRam) load(addr word) byte{
 	}
 
 	if addr >= 0x3F20 && addr <= 0x3FFF {
-		return m.data[addr - (0x00FF & addr)]
+		return m.data[0x3F00 + (addr % 0x20)]
 	}
 
 	if addr >= 0x4000{
@@ -91,7 +91,7 @@ func (m *VRam) store(addr word, b byte){
 
 	if addr >= 0x3F20 && addr <= 0x3FFF {
 		// 0x3F20 - 0x3FFF is mirror of 0x3F00 - 0x3F1F
-		m.data[addr - (0x00FF & addr)] = b
+		m.data[0x3F00 + (addr % 0x20)] = b
 		return
 	}
 
@@ -104,9 +104,9 @@ func (m *VRam) store(addr word, b byte){
 	// 水平ミラーリング or 垂直ミラーリング
 	if isNameTable1(addr) || isNameTable3(addr){
 		if m.isHorizontalMirror{
-			m.data[addr-0x0400] = b
+			m.data[addr - 0x0400] = b
 		}else{
-			m.data[addr-0x0800] = b
+			m.data[addr - 0x0800] = b
 		}
 		return
 	}
