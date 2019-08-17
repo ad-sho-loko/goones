@@ -1,5 +1,14 @@
 # goones
-NES Emulator written in Golang
+NES Emulator written in Golang. 
+
+![super-mario-bros](https://github.com/ad-sho-loko/goones/blob/etc/image/img/super-mario-bro.png)
+
+## How to run
+
+```
+go get github.com/ad-sho-loko/goones
+go run . [.nes]
+```
 
 ## Reference
 - https://wiki.nesdev.com/w/index.php/INES#iNES_emulator
