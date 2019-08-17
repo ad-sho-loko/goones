@@ -7,7 +7,7 @@ NES Emulator written in Golang. It is a toy project for me.
 
 ```
 go get github.com/ad-sho-loko/goones
-go run . [.nes]
+goones [.nes-file]
 ```
 
 ## Reference
