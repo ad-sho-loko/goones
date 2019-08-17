@@ -16,7 +16,7 @@ const HeaderSize = 0x0010
 func NewCassette(path string) (Ines, error){
 	bytes, err := ioutil.ReadFile(path)
 	if err != nil{
-		return nil, fmt.Errorf("cannot open the cassete. [PATH] %s", path)
+		return nil, fmt.Errorf("cannot open %s", path)
 	}
 
 	// validate header
