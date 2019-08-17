@@ -36,7 +36,7 @@ func NewCassette(path string) (Ines, error){
 	}
 
 	return &Mapper0{
-		isHorizontalMirror:bytes[5] == 1,
+		isHorizontalMirror:bytes[6] & 0x01 == 0,
 		prgRom:prgRom,
 		chrRom:bytes[chrRomStart:chrROMEnd],
 	}, nil
