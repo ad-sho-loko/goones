@@ -6,8 +6,6 @@ type Controller struct {
 	buttons [8]bool
 }
 
-type Key uint
-
 func NewController() *Controller{
 	return &Controller{
 		counter:0,

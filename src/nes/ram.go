@@ -1,5 +1,11 @@
 package nes
 
+type Mem interface{
+	load(addr word) byte
+	store(addr word, b byte)
+	slice(begin int, end int) []byte
+}
+
 // RAM for cpu
 type Ram struct{
 	data []byte
@@ -68,7 +74,7 @@ func (m *VRam) load(addr word) byte{
 		if m.isHorizontalMirror{
 			return m.data[addr-0x0400]
 		}else{
-			return m.data[addr /* -0x0800 */]
+			return m.data[addr /* -0x0800 */ ]
 		}
 	}
 
@@ -103,7 +109,7 @@ func (m *VRam) store(addr word, b byte){
 		if m.isHorizontalMirror{
 			m.data[addr - 0x0400] = b
 		}else{
-			m.data[addr /* - 0x0800 */] = b
+			m.data[addr /* - 0x0800 */ ] = b
 		}
 		return
 	}

@@ -8,12 +8,12 @@ type Ppu struct {
 	// Core
 	PpuCtrl     byte   // 0x2000
 	PpuMask     byte   // 0x2001
-	PpuStatus   byte // 0x2002
+	PpuStatus   byte   // 0x2002
 	OamAddr     byte   // 0x2003
 	OamData     byte   // 0x2004
-	scrollFirst bool  // for 0x2005
-	PpuScrollX  byte // 0x2005(1)
-	PpuScrollY  byte // 0x2005(1)
+	scrollFirst bool   // for 0x2005
+	PpuScrollX  byte   // 0x2005(1)
+	PpuScrollY  byte   // 0x2005(2)
 	PpuAddr     word   // 0x2006
 	isLowerAddr bool   // for 0x2006
 	PpuData     byte   // 0x2007
@@ -49,11 +49,6 @@ func NewPpu(bus *Bus, chrRom []byte, r *Renderer, isHorizontalMirror bool) *Ppu{
 	}
 }
 
-// VBlank時にNMI割込の発生(1:On, 0:Off)
-func (p *Ppu) isAbleNmiVblank() bool{
-	return p.PpuCtrl & 0x80 != 0
-}
-
 func (p *Ppu) getIncrementCount() word{
 	if p.PpuCtrl & 0x04 != 0{
 		return 32
@@ -77,7 +72,6 @@ func (p *Ppu) readPpuStatus() byte{
 	p.scrollFirst = true // reset scroll register($0x2006)
 	b := p.PpuStatus
 	p.clearVblank()
-	// p.endHitSprite()
 	return b
 }
 
@@ -136,7 +130,6 @@ func (p *Ppu) readPpuData() byte{
 
 func (p *Ppu) writePpuData(b byte){
 	addr := p.PpuAddr
-	// fmt.Printf("[write] 0x%x => 0x%x\n", p.PpuAddr, addr)
 	p.vram.store(addr, b)
 	p.PpuAddr += p.getIncrementCount()
 }
@@ -165,6 +158,10 @@ func (p *Ppu) leaveVblank() {
 	p.bus.cpu.unsetBit(Irq)
 }
 
+func (p *Ppu) isAbleNmiVblank() bool{
+	return p.PpuCtrl & 0x80 != 0
+}
+
 func (p *Ppu) isBackgroundEnable() bool {
 	return p.PpuMask & 0x08 != 0
 }
@@ -173,17 +170,17 @@ func (p *Ppu) isSpriteEnable() bool {
 	return p.PpuMask & 0x10 != 0
 }
 
-func (p *Ppu) hasHitSprite() bool{
-	zeroSpriteY := p.spriteRam.load(0) + 8
-	return p.renderer.line == int(zeroSpriteY) && p.isBackgroundEnable() && p.isSpriteEnable()
-}
-
 func (p *Ppu) hitSprite(){
 	p.PpuStatus |= 0x40
 }
 
-func (p *Ppu) endHitSprite(){
+func (p *Ppu) noHitSprite(){
 	p.PpuStatus &= 0xBF
+}
+
+func (p *Ppu) hasHitSprite() bool{
+	zeroSpriteY := p.spriteRam.load(0) + 8
+	return p.renderer.line == int(zeroSpriteY) && p.isBackgroundEnable() && p.isSpriteEnable()
 }
 
 func (p *Ppu) run(cycle uint64) bool{
@@ -212,7 +209,7 @@ func (p *Ppu) run(cycle uint64) bool{
 
 		if p.renderer.line == 262 {
 			p.leaveVblank()
-			p.endHitSprite()
+			p.noHitSprite()
 			p.bus.cpu.intrrupt = nil
 			return true
 		}
@@ -277,7 +274,6 @@ func (p *Ppu) evaluateNameTableOffset(x, y int) int{
 	return nameTableId * 0x400
 }
 
-// build the background in one line.
 func (p *Ppu) buildBackground(line int, renderTiles []*Tile){
 	y := int(line / 8)
 	tileY := y + int(p.adjustScrollY() / 8)
@@ -302,7 +298,6 @@ func (p *Ppu) buildTile(x, y, offset int)([8][8]byte, int){
 	blockId := p.getBlockId(x, y)
 	attr := p.getAttribute(x, y, offset)
 	paletteId := (attr >> (word(blockId) * 2)) & 0x03
-	// fmt.Printf("(%d,%d) blockId:%d, spriteId:%d attr:%d palleteId:%d\n", x, y, blockId, spriteId, attr, paletteId)
 	return p.buildSprite(spriteId, p.fetchBgChrTable()), paletteId
 }
 
@@ -341,9 +336,9 @@ func (p *Ppu) getBackgroundPalette() [16]color.RGBA{
 		if i % 4 == 0 {
 			// 0x3F04, 0x3F08, 0x3C0C are ignored by background.
 			// Instead of here, use these values in the sprite palette.
-			currentPalette[i] = SystemPalette[p.vram.load(0x3F00)]
+			currentPalette[i] = systemPalette[p.vram.load(0x3F00)]
 		}else{
-			currentPalette[i] = SystemPalette[b]
+			currentPalette[i] = systemPalette[b]
 		}
 	}
 	return currentPalette
@@ -354,9 +349,9 @@ func (p *Ppu) getSpritePalette() [16]color.RGBA{
 	for i, b := range p.vram.slice(0x3F10, 0x3F20){
 		if i % 4 == 0 {
 			// 0x3F10, 0x3F14, 0x3F18, 0x3F1C are mirror of 0x3F00, 0x3F04, 0x3F08, 0x3CFC
-			currentPalette[i] = SystemPalette[p.vram.load(word(0x3F00+i))]
+			currentPalette[i] = systemPalette[p.vram.load(word(0x3F00+i))]
 		}else{
-			currentPalette[i] = SystemPalette[b]
+			currentPalette[i] = systemPalette[b]
 		}
 	}
 	return currentPalette
@@ -377,7 +372,8 @@ func (p *Ppu) buildSprites(){
 	offset := p.fetchSpriteChrTable()
 
 	for i := 0; i < 0x0100; i+=4 {
-		// INFO: Offset sprite Y position, because First and last 8line is not rendered.
+		// INFO: Offset sprite Y position,
+		// because First and last 8line is not rendered.
 		y := p.spriteRam.load(word(i)) // - 8
 
 		if y < 0 {

@@ -40,14 +40,11 @@ func (n *Nes) Init() error {
 	}
 
 	n.cpu.PC = n.bus.Loadw(0xFFFC)
-	// n.cpu.PC = 0xC000
 	n.cpu.S = 0xFD
 	n.cpu.P = 0x24
-
 	return nil
 }
 
-// run 60fps
 func (n *Nes) Run(){
 
 	for !n.step(){
@@ -58,7 +55,6 @@ func (n *Nes) step() bool {
 
 	// check interrupt
 	if n.cpu.intrrupt != nil {
-		// fmt.Println("========= Interrupt! =========")
 		n.cpu.intrrupt()
 	}
 	n.cpu.intrrupt = nil
@@ -76,7 +72,6 @@ func (n *Nes) step() bool {
 
 	n.cpu.advance(inst.addrMode)
 	n.cpu.execute(inst, addr)
-
 	n.cpu.cycle += cycle
 
 	if n.ppu.run(cycle){

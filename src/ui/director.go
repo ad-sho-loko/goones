@@ -26,8 +26,8 @@ func (d *Director) setKeyCallback(){
 		if !(action == glfw.Press || action == glfw.Release){
 			return
 		}
-
 		var isPush = action == glfw.Press
+
 		switch key {
 		case glfw.KeyA:
 			keyStates[0] = isPush

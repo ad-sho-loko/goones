@@ -21,12 +21,9 @@ type Renderer struct {
 }
 
 func NewRenderer() *Renderer{
-	initSystemPallete()
-
 	return &Renderer{
 		line:0,
 		tiles:make([]*Tile, 30*32),
-		// the first image before rendering
 		img:image.NewRGBA(image.Rectangle{Min: UpLeft, Max: DownRight}),
 	}
 }

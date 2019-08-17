@@ -37,7 +37,6 @@ func (g *GameView) Update(){
 	gl.BindTexture(gl.TEXTURE_2D, 0)
 }
 
-
 func createTexture() uint32{
 	var texture uint32
 	gl.GenTextures(1, &texture)
