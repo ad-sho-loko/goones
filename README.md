@@ -1,7 +1,15 @@
 # goones
-NES Emulator written in Golang. It is a toy project for me. 
+NES Emulator written in Golang. 
 
 ![super-mario-bros](https://github.com/ad-sho-loko/goones/blob/etc/image/img/super-mario-bro.png)
+
+It is a toy project for me, and the outcome is a implementation that supports
+
+- works super-mario-bros! (not including rom)
+- mapper0,  
+- 1P controller, 
+- 6502 emulator,
+- and a simple ppu.
 
 ## How to run
 

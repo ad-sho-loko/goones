@@ -11,7 +11,7 @@ import (
 const(
 	Width = 256
 	Height = 240
-	title = "Nes Emulator"
+	title = "goones"
 )
 
 func init() {
