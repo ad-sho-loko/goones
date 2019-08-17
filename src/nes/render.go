@@ -35,22 +35,6 @@ func (r *Renderer) Buffer() *image.RGBA{
 	return r.img
 }
 
-func (r *Renderer) isBackground8() bool{
-	return r.ppuMask & 0x02 != 1
-}
-
-func (r *Renderer) isSprite8() bool{
-	return r.ppuMask & 0x04 != 1
-}
-
-func (r *Renderer) isEnableBg() bool{
-	return r.ppuMask & 0x08 != 0
-}
-
-func (r *Renderer) isEnableSprite() bool{
-	return r.ppuMask & 0x10 != 0
-}
-
 func (r *Renderer) render(ppuMask byte, isBgEnabled bool, isSpriteEnabled bool){
 	r.ppuMask = ppuMask
 
@@ -82,6 +66,7 @@ func (r *Renderer) renderTile(tile *Tile, tileX, tileY int){
 			y := tileY + i - int(offsetY)
 			x = int(byte(x))
 			y = int(byte(y))
+
 			if x >= 0 && x <= 0xFF && y >= 0 && y < 240 {
 				r.img.SetRGBA(x, y, rgba)
 			}

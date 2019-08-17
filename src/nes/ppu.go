@@ -77,7 +77,7 @@ func (p *Ppu) readPpuStatus() byte{
 	p.scrollFirst = true // reset scroll register($0x2006)
 	b := p.PpuStatus
 	p.clearVblank()
-	p.endHitSprite()
+	// p.endHitSprite()
 	return b
 }
 
@@ -120,7 +120,6 @@ func (p *Ppu) writePpuAddr(b byte){
 
 // $0x2007
 func (p *Ppu) readPpuData() byte{
-
 	if p.PpuAddr >= 0x3F00 {
 		b := p.vram.load(p.PpuAddr)
 		p.vramBuf = p.vram.load(p.PpuAddr - 0x1000)
@@ -163,8 +162,7 @@ func (p *Ppu) leaveVblank() {
 	p.renderer.spritePalette = p.getSpritePalette()
 	p.renderer.line = 0
 	p.clearVblank()
-	// not cool
-	// p.bus.cpu.unsetBit(Irq)
+	p.bus.cpu.unsetBit(Irq)
 }
 
 func (p *Ppu) isBackgroundEnable() bool {
@@ -176,18 +174,16 @@ func (p *Ppu) isSpriteEnable() bool {
 }
 
 func (p *Ppu) hasHitSprite() bool{
-	zeroSpriteY := p.spriteRam.load(0)
-	return p.renderer.line == int(zeroSpriteY)  && p.isBackgroundEnable() && p.isSpriteEnable()
+	zeroSpriteY := p.spriteRam.load(0) + 8
+	return p.renderer.line == int(zeroSpriteY) && p.isBackgroundEnable() && p.isSpriteEnable()
 }
 
 func (p *Ppu) hitSprite(){
 	p.PpuStatus |= 0x40
-	// fmt.Println("===> HIT SPRITE!")
 }
 
 func (p *Ppu) endHitSprite(){
 	p.PpuStatus &= 0xBF
-	// fmt.Println("<=== END SPRITE!")
 }
 
 func (p *Ppu) run(cycle uint64) bool{
@@ -206,7 +202,7 @@ func (p *Ppu) run(cycle uint64) bool{
 			p.hitSprite()
 		}
 
-		if p.renderer.line <= 240 && p.renderer.line % 8 == 0 {
+		if p.renderer.line <= 240 && p.renderer.line % 8 == 0 && p.PpuScrollY <= 240{
 			p.buildBackground(p.renderer.line - 1, p.renderer.tiles)
 		}
 
@@ -291,7 +287,6 @@ func (p *Ppu) buildBackground(line int, renderTiles []*Tile){
 		tileX := x + int(p.adjustScrollX() / 8)
 		rotatedX := tileX % 32
 		nameTableOffset := p.evaluateNameTableOffset(tileX, tileY)
-
 		sprite, palleteId := p.buildTile(rotatedX, rotateY, nameTableOffset)
 		renderTiles[y * 32 + x] = &Tile{
 			bytes:     sprite,
