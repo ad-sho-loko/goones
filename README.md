@@ -1,5 +1,5 @@
 # goones
-NES Emulator written in Golang. 
+NES Emulator written in Golang. It is a toy project for me. 
 
 ![super-mario-bros](https://github.com/ad-sho-loko/goones/blob/etc/image/img/super-mario-bro.png)
 

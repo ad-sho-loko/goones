@@ -2,8 +2,8 @@ package main
 
 import (
 	"fmt"
-	"go_nes/src/nes"
-	"go_nes/src/ui"
+	"github.com/ad-sho-loko/goones/nes"
+	"github.com/ad-sho-loko/goones/ui"
 	"os"
 )
 

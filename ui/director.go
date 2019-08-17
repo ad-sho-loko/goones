@@ -1,9 +1,9 @@
 package ui
 
 import (
+	"github.com/ad-sho-loko/goones/nes"
 	"github.com/go-gl/gl/v2.1/gl"
 	"github.com/go-gl/glfw/v3.2/glfw"
-	"go_nes/src/nes"
 )
 
 type Director struct {
